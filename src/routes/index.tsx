@@ -91,10 +91,12 @@ function BrasaDashboard() {
   );
 
   const chartValues = useMemo(() => {
-    if (history.length === 1) return Array.from({ length: 11 }, () => history[0].pontos / 1_000_000);
+    const firstPoint = history[0];
+    if (!firstPoint) return [];
+    if (history.length === 1) return Array.from({ length: 11 }, () => firstPoint.pontos / 1_000_000);
     return hourLabels.map((_, index) => {
       const historyIndex = Math.round((index * (history.length - 1)) / (hourLabels.length - 1));
-      return history[historyIndex].pontos / 1_000_000;
+      return (history[historyIndex]?.pontos ?? firstPoint.pontos) / 1_000_000;
     });
   }, [history, hourLabels]);
 
