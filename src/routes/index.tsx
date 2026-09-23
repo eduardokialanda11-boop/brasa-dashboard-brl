@@ -12,11 +12,12 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { Activity, ArrowUpRight, Check, Database, Eye, EyeOff, Flame, Loader2 } from "lucide-react";
+import { Activity, ArrowUpRight, Check, Database, Eye, EyeOff, Loader2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import logo from "@/assets/brasa-logo.jpg.asset.json";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -116,10 +117,28 @@ function BrasaDashboard() {
     ),
     datasets: [{
       data: history.map((item) => item.pontos / 1_000_000),
-      borderColor: "#22c55e",
-      backgroundColor: "rgba(34, 197, 94, 0.12)",
-      pointBackgroundColor: "#22c55e",
-      pointBorderColor: "#0a0a0a",
+      // Scriptable colors: a horizontal gradient green -> yellow, like the logo's flame.
+      borderColor: (ctx) => {
+        const { chart } = ctx;
+        const area = chart.chartArea;
+        if (!area) return "#16a34a";
+        const g = chart.ctx.createLinearGradient(area.left, 0, area.right, 0);
+        g.addColorStop(0, "#16a34a");
+        g.addColorStop(1, "#facc15");
+        return g;
+      },
+      backgroundColor: (ctx) => {
+        const { chart } = ctx;
+        const area = chart.chartArea;
+        if (!area) return "rgba(22,163,74,0.15)";
+        const g = chart.ctx.createLinearGradient(0, area.top, 0, area.bottom);
+        g.addColorStop(0, "rgba(250,204,21,0.22)");
+        g.addColorStop(0.5, "rgba(22,163,74,0.14)");
+        g.addColorStop(1, "rgba(22,163,74,0)");
+        return g;
+      },
+      pointBackgroundColor: "#facc15",
+      pointBorderColor: "#0a1a12",
       pointBorderWidth: 3,
       pointRadius: 0,
       pointHoverRadius: 5,
@@ -136,8 +155,8 @@ function BrasaDashboard() {
     plugins: {
       legend: { display: false },
       tooltip: {
-        backgroundColor: "#1a1a1a",
-        borderColor: "#333333",
+        backgroundColor: "#132a1f",
+        borderColor: "#1e3a2a",
         borderWidth: 1,
         displayColors: false,
         callbacks: { label: (context) => `${Number(context.parsed.y).toFixed(2)}M pontos` },
@@ -147,14 +166,14 @@ function BrasaDashboard() {
       x: {
         border: { display: false },
         grid: { display: false },
-        ticks: { color: "#777777", maxTicksLimit: 6, font: { family: "Space Grotesk", size: 11 } },
+        ticks: { color: "#8fb09c", maxTicksLimit: 6, font: { family: "Space Grotesk", size: 11 } },
       },
       y: {
         border: { display: false },
         beginAtZero: true,
-        grid: { color: "rgba(255,255,255,.06)" },
+        grid: { color: "rgba(143,176,156,.08)" },
         ticks: {
-          color: "#777777",
+          color: "#8fb09c",
           callback: (value) => `${value}M`,
           font: { family: "Space Grotesk", size: 11 },
         },
@@ -167,16 +186,14 @@ function BrasaDashboard() {
       <div className="mx-auto w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-10 lg:px-10">
         <header className="mb-8 flex items-center justify-between border-b border-border pb-5">
           <div className="flex items-center gap-3">
-            <div className="flex size-10 items-center justify-center rounded-xl bg-primary text-primary-foreground shadow-[0_0_28px_var(--accent)]">
-              <Flame className="size-5 fill-current" aria-hidden="true" />
-            </div>
+            <img src={logo.url} alt="Logo Brasa" className="size-11 rounded-full object-cover ring-1 ring-border" />
             <div>
-              <p className="text-lg font-bold leading-none">BRASA</p>
-              <p className="mt-1 text-[10px] font-bold tracking-[0.24em] text-primary">POINTS</p>
+              <p className="text-lg font-bold leading-none">Brasa</p>
+              <p className="mt-1 text-[11px] font-bold tracking-[0.12em] text-highlight">Pix to Solana</p>
             </div>
           </div>
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-            <span className={`size-2 rounded-full ${status === "connected" ? "bg-primary shadow-[0_0_10px_var(--primary)]" : "bg-muted-foreground"}`} />
+            <span className={`size-2 rounded-full ${status === "connected" ? "bg-highlight shadow-[0_0_10px_var(--highlight)]" : "bg-muted-foreground"}`} />
             {status === "connected" ? "Ao vivo" : "Demonstração"}
           </div>
         </header>
@@ -205,15 +222,17 @@ function BrasaDashboard() {
           </div>
         </section>
 
-        <section className="mb-8 rounded-2xl border border-border bg-card p-5 sm:p-8">
-          <div className="mb-7 flex items-start justify-between gap-4">
+        <section className="relative mb-8 overflow-hidden rounded-2xl border border-border bg-card/70 p-5 backdrop-blur-xl sm:p-8">
+          {/* Subtle blurred glow behind the chart */}
+          <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 left-1/4 h-64 w-2/3 rounded-full bg-[image:var(--gradient-brand)] opacity-20 blur-3xl" />
+          <div className="relative mb-7 flex items-start justify-between gap-4">
             <div>
               <h1 className="text-xl font-bold sm:text-2xl">Evolução dos pontos</h1>
               <p className="mt-1 text-sm text-muted-foreground">Desempenho ao longo do dia</p>
             </div>
-            <span className="rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground">+{gainedInMillions.toFixed(1)}M</span>
+            <span className="relative rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground">+{gainedInMillions.toFixed(1)}M</span>
           </div>
-          <div className="h-64 w-full sm:h-80">
+          <div className="relative h-64 w-full sm:h-80">
             <Line data={chartData} options={chartOptions} />
           </div>
         </section>
