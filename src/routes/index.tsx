@@ -83,36 +83,20 @@ function BrasaDashboard() {
   const pointsInMillions = latest ? latest.pontos / 1_000_000 : 0;
   const gainedInMillions = first ? pointsInMillions - first.pontos / 1_000_000 : 0;
 
-  // X-axis labels: one label per distinct hour, formatted as "09h", "11h"...
-  // If every record shares the same hour (e.g. identical timestamps), fall back
-  // to a simulated 09h..22h timeline based on the row index.
-  const hourLabels = useMemo(() => {
-    const seen = new Set<string>();
-    const hours = history.map((item) => {
-      const date = new Date(item.criado_em);
-      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
-      if (seen.has(key)) return null;
-      seen.add(key);
-      return `${String(date.getHours()).padStart(2, "0")}h`;
-    });
-    const distinct = hours.filter(Boolean);
-    if (distinct.length >= 2) return distinct as string[];
-    return history.map((_, index) => `${String(9 + index).padStart(2, "0")}h`);
-  }, [history]);
+  // The public history can contain equal clock times on different dates. Use a
+  // stable 09h–19h day view and sample the full ordered series into 11 points.
+  const hourLabels = useMemo(
+    () => Array.from({ length: 11 }, (_, index) => `${String(9 + index).padStart(2, "0")}h`),
+    [],
+  );
 
-  // Chart values aligned with the deduplicated labels above.
   const chartValues = useMemo(() => {
-    const seen = new Set<string>();
-    const values = history.filter((item) => {
-      const date = new Date(item.criado_em);
-      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    }).map((item) => item.pontos / 1_000_000);
-    if (values.length >= 2) return values;
-    return history.map((item) => item.pontos / 1_000_000);
-  }, [history]);
+    if (history.length === 1) return Array.from({ length: 11 }, () => history[0].pontos / 1_000_000);
+    return hourLabels.map((_, index) => {
+      const historyIndex = Math.round((index * (history.length - 1)) / (hourLabels.length - 1));
+      return history[historyIndex].pontos / 1_000_000;
+    });
+  }, [history, hourLabels]);
 
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: hourLabels,
