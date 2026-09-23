@@ -12,7 +12,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { Activity, ArrowUpRight, Check, Database, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Activity, ArrowUpRight, Database, Eye, EyeOff, Loader2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
