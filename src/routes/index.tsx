@@ -106,7 +106,9 @@ function BrasaDashboard() {
   }
 
   const latest = history.at(-1) ?? demoData.at(-1);
+  const first = history.at(0) ?? demoData.at(0);
   const pointsInMillions = latest ? latest.pontos / 1_000_000 : 0;
+  const gainedInMillions = first ? pointsInMillions - first.pontos / 1_000_000 : 0;
 
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: history.map((item) =>
@@ -209,7 +211,7 @@ function BrasaDashboard() {
               <h1 className="text-xl font-bold sm:text-2xl">Evolução dos pontos</h1>
               <p className="mt-1 text-sm text-muted-foreground">Desempenho ao longo do dia</p>
             </div>
-            <span className="rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground">+{(pointsInMillions - history[0].pontos / 1_000_000).toFixed(1)}M</span>
+            <span className="rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground">+{gainedInMillions.toFixed(1)}M</span>
           </div>
           <div className="h-64 w-full sm:h-80">
             <Line data={chartData} options={chartOptions} />
