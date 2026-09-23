@@ -175,7 +175,7 @@ function BrasaDashboard() {
       fill: true,
       tension: 0.42,
     }],
-  }), [history]);
+  }), [hourLabels, chartValues]);
 
   const chartOptions = useMemo<ChartOptions<"line">>(() => ({
     responsive: true,
@@ -188,7 +188,7 @@ function BrasaDashboard() {
         borderColor: "#1e3a2a",
         borderWidth: 1,
         displayColors: false,
-        callbacks: { label: (context) => `${Number(context.parsed.y).toFixed(2)}M pontos` },
+        callbacks: { label: (context) => `${Number(context.parsed.y).toFixed(1)}M pontos` },
       },
     },
     scales: {
@@ -266,6 +266,8 @@ function BrasaDashboard() {
           </div>
         </section>
 
+        {/* Once connected, the form disappears and only the dashboard remains. */}
+        {status !== "connected" && (
         <footer className="rounded-2xl border border-border bg-card p-5 sm:p-8">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex size-9 items-center justify-center rounded-xl bg-secondary text-primary">
@@ -297,6 +299,7 @@ function BrasaDashboard() {
           </form>
           {status === "error" && <p role="alert" className="mt-4 text-sm font-medium text-destructive">{error}</p>}
         </footer>
+        )}
       </div>
     </main>
   );
