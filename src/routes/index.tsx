@@ -12,7 +12,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { Activity, ArrowUpRight, Check, Database, Eye, EyeOff, Loader2 } from "lucide-react";
+import { Activity, ArrowUpRight, Database, Eye, EyeOff, Loader2 } from "lucide-react";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -111,12 +111,41 @@ function BrasaDashboard() {
   const pointsInMillions = latest ? latest.pontos / 1_000_000 : 0;
   const gainedInMillions = first ? pointsInMillions - first.pontos / 1_000_000 : 0;
 
+  // X-axis labels: one label per distinct hour, formatted as "09h", "11h"...
+  // If every record shares the same hour (e.g. identical timestamps), fall back
+  // to a simulated 09h..22h timeline based on the row index.
+  const hourLabels = useMemo(() => {
+    const seen = new Set<string>();
+    const hours = history.map((item) => {
+      const date = new Date(item.criado_em);
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return `${String(date.getHours()).padStart(2, "0")}h`;
+    });
+    const distinct = hours.filter(Boolean);
+    if (distinct.length >= 2) return distinct as string[];
+    return history.map((_, index) => `${String(9 + index).padStart(2, "0")}h`);
+  }, [history]);
+
+  // Chart values aligned with the deduplicated labels above.
+  const chartValues = useMemo(() => {
+    const seen = new Set<string>();
+    const values = history.filter((item) => {
+      const date = new Date(item.criado_em);
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map((item) => item.pontos / 1_000_000);
+    if (values.length >= 2) return values;
+    return history.map((item) => item.pontos / 1_000_000);
+  }, [history]);
+
   const chartData = useMemo<ChartData<"line">>(() => ({
-    labels: history.map((item) =>
-      new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date(item.criado_em)),
-    ),
+    labels: hourLabels,
     datasets: [{
-      data: history.map((item) => item.pontos / 1_000_000),
+      data: chartValues,
       // Scriptable colors: a horizontal gradient green -> yellow, like the logo's flame.
       borderColor: (ctx) => {
         const { chart } = ctx;
@@ -146,7 +175,7 @@ function BrasaDashboard() {
       fill: true,
       tension: 0.42,
     }],
-  }), [history]);
+  }), [hourLabels, chartValues]);
 
   const chartOptions = useMemo<ChartOptions<"line">>(() => ({
     responsive: true,
@@ -159,7 +188,7 @@ function BrasaDashboard() {
         borderColor: "#1e3a2a",
         borderWidth: 1,
         displayColors: false,
-        callbacks: { label: (context) => `${Number(context.parsed.y).toFixed(2)}M pontos` },
+        callbacks: { label: (context) => `${Number(context.parsed.y).toFixed(1)}M pontos` },
       },
     },
     scales: {
@@ -237,6 +266,8 @@ function BrasaDashboard() {
           </div>
         </section>
 
+        {/* Once connected, the form disappears and only the dashboard remains. */}
+        {status !== "connected" && (
         <footer className="rounded-2xl border border-border bg-card p-5 sm:p-8">
           <div className="mb-6 flex items-center gap-3">
             <div className="flex size-9 items-center justify-center rounded-xl bg-secondary text-primary">
@@ -262,12 +293,13 @@ function BrasaDashboard() {
               </span>
             </label>
             <Button type="submit" variant="premium" size="wide" disabled={status === "loading"}>
-              {status === "loading" ? <Loader2 className="animate-spin" /> : status === "connected" ? <Check /> : <Database />}
-              {status === "loading" ? "Conectando" : status === "connected" ? "Conectado" : "Conectar"}
+              {status === "loading" ? <Loader2 className="animate-spin" /> : <Database />}
+              {status === "loading" ? "Conectando" : "Conectar"}
             </Button>
           </form>
           {status === "error" && <p role="alert" className="mt-4 text-sm font-medium text-destructive">{error}</p>}
         </footer>
+        )}
       </div>
     </main>
   );
