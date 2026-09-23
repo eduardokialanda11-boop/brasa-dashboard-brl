@@ -111,12 +111,41 @@ function BrasaDashboard() {
   const pointsInMillions = latest ? latest.pontos / 1_000_000 : 0;
   const gainedInMillions = first ? pointsInMillions - first.pontos / 1_000_000 : 0;
 
+  // X-axis labels: one label per distinct hour, formatted as "09h", "11h"...
+  // If every record shares the same hour (e.g. identical timestamps), fall back
+  // to a simulated 09h..22h timeline based on the row index.
+  const hourLabels = useMemo(() => {
+    const seen = new Set<string>();
+    const hours = history.map((item) => {
+      const date = new Date(item.criado_em);
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
+      if (seen.has(key)) return null;
+      seen.add(key);
+      return `${String(date.getHours()).padStart(2, "0")}h`;
+    });
+    const distinct = hours.filter(Boolean);
+    if (distinct.length >= 2) return distinct as string[];
+    return history.map((_, index) => `${String(9 + index).padStart(2, "0")}h`);
+  }, [history]);
+
+  // Chart values aligned with the deduplicated labels above.
+  const chartValues = useMemo(() => {
+    const seen = new Set<string>();
+    const values = history.filter((item) => {
+      const date = new Date(item.criado_em);
+      const key = `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}-${date.getHours()}`;
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).map((item) => item.pontos / 1_000_000);
+    if (values.length >= 2) return values;
+    return history.map((item) => item.pontos / 1_000_000);
+  }, [history]);
+
   const chartData = useMemo<ChartData<"line">>(() => ({
-    labels: history.map((item) =>
-      new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit" }).format(new Date(item.criado_em)),
-    ),
+    labels: hourLabels,
     datasets: [{
-      data: history.map((item) => item.pontos / 1_000_000),
+      data: chartValues,
       // Scriptable colors: a horizontal gradient green -> yellow, like the logo's flame.
       borderColor: (ctx) => {
         const { chart } = ctx;
