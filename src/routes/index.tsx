@@ -293,8 +293,8 @@ function BrasaDashboard() {
               </span>
             </label>
             <Button type="submit" variant="premium" size="wide" disabled={status === "loading"}>
-              {status === "loading" ? <Loader2 className="animate-spin" /> : status === "connected" ? <Check /> : <Database />}
-              {status === "loading" ? "Conectando" : status === "connected" ? "Conectado" : "Conectar"}
+              {status === "loading" ? <Loader2 className="animate-spin" /> : <Database />}
+              {status === "loading" ? "Conectando" : "Conectar"}
             </Button>
           </form>
           {status === "error" && <p role="alert" className="mt-4 text-sm font-medium text-destructive">{error}</p>}
