@@ -96,6 +96,29 @@ function BrasaDashboard() {
   const pointsInMillions = latest ? latest.pontos / 1_000_000 : 0;
   const gainedInMillions = first ? pointsInMillions - first.pontos / 1_000_000 : 0;
 
+  // Totais dos novos indicadores (somam apenas linhas reais do Supabase).
+  const totalVolumeBrl = history.reduce((sum, row) => sum + (row.volume_brl ?? 0), 0);
+  const totalEconomia = history.reduce((sum, row) => sum + (row.economia_vs_banco ?? 0), 0);
+
+  // Crescimento de USDC: soma de hoje vs soma de ontem.
+  const usdcGrowth = useMemo(() => {
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = `${yesterday.getFullYear()}-${yesterday.getMonth()}-${yesterday.getDate()}`;
+
+    let todaySum = 0;
+    let yesterdaySum = 0;
+    for (const row of history) {
+      const key = dayKey(row.criado_em);
+      if (key === todayKey) todaySum += row.volume_usdc ?? 0;
+      else if (key === yesterdayKey) yesterdaySum += row.volume_usdc ?? 0;
+    }
+    if (yesterdaySum <= 0) return null; // sem base de comparação
+    return ((todaySum - yesterdaySum) / yesterdaySum) * 100;
+  }, [history]);
+
   // The public history can contain equal clock times on different dates. Use a
   // stable 09h–19h day view and sample the full ordered series into 11 points.
   const hourLabels = useMemo(
