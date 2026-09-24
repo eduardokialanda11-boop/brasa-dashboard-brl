@@ -23,6 +23,19 @@ type HistoryPoint = {
   pontos: number;
   posicao: number;
   criado_em: string;
+  volume_brl: number;
+  volume_usdc: number;
+  economia_vs_banco: number;
+};
+
+// Formata valores monetários em Real (pt-BR).
+const formatBRL = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
+// Chave de dia local (AAAA-MM-DD) para comparar hoje vs ontem.
+const dayKey = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 };
 
 // This fallback keeps the dashboard complete if the public data is temporarily unavailable.
@@ -31,6 +44,9 @@ const demoData: HistoryPoint[] = [1.2, 1.65, 2.4, 3.15, 4.3, 5.1, 6.45, 7.05, 8.
     pontos: millions * 1_000_000,
     posicao: Math.max(12, 46 - index * 4),
     criado_em: new Date(2026, 8, 23, 9 + index).toISOString(),
+    volume_brl: millions * 420_000,
+    volume_usdc: millions * 78_000,
+    economia_vs_banco: millions * 9_400,
   }),
 );
 
@@ -59,7 +75,7 @@ function BrasaDashboard() {
     async function fetchHistory() {
       const { data, error } = await supabase
         .from("historico_ponto")
-        .select("pontos,posicao,criado_em")
+        .select("pontos,posicao,criado_em,volume_brl,volume_usdc,economia_vs_banco")
         .order("criado_em", { ascending: true });
 
       if (!active) return;
@@ -82,6 +98,29 @@ function BrasaDashboard() {
   const first = history.at(0) ?? demoData.at(0);
   const pointsInMillions = latest ? latest.pontos / 1_000_000 : 0;
   const gainedInMillions = first ? pointsInMillions - first.pontos / 1_000_000 : 0;
+
+  // Totais dos novos indicadores (somam apenas linhas reais do Supabase).
+  const totalVolumeBrl = history.reduce((sum, row) => sum + (row.volume_brl ?? 0), 0);
+  const totalEconomia = history.reduce((sum, row) => sum + (row.economia_vs_banco ?? 0), 0);
+
+  // Crescimento de USDC: soma de hoje vs soma de ontem.
+  const usdcGrowth = useMemo(() => {
+    const now = new Date();
+    const todayKey = `${now.getFullYear()}-${now.getMonth()}-${now.getDate()}`;
+    const yesterday = new Date(now);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayKey = `${yesterday.getFullYear()}-${yesterday.getMonth()}-${yesterday.getDate()}`;
+
+    let todaySum = 0;
+    let yesterdaySum = 0;
+    for (const row of history) {
+      const key = dayKey(row.criado_em);
+      if (key === todayKey) todaySum += row.volume_usdc ?? 0;
+      else if (key === yesterdayKey) yesterdaySum += row.volume_usdc ?? 0;
+    }
+    if (yesterdaySum <= 0) return null; // sem base de comparação
+    return ((todaySum - yesterdaySum) / yesterdaySum) * 100;
+  }, [history]);
 
   // The public history can contain equal clock times on different dates. Use a
   // stable 09h–19h day view and sample the full ordered series into 11 points.
@@ -206,6 +245,25 @@ function BrasaDashboard() {
                 <ArrowUpRight className="size-5" aria-hidden="true" />
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Indicadores de volume e economia */}
+        <section className="mb-5 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Volume Total BRL → Pix</p>
+            <p className="mt-3 text-2xl font-bold tabular-nums sm:text-3xl">{formatBRL(totalVolumeBrl)}</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Taxa Economizada vs Bancos</p>
+            <p className="mt-3 text-2xl font-bold tabular-nums text-primary sm:text-3xl">{formatBRL(totalEconomia)}</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Uso Solana Brasil</p>
+            <p className="mt-3 text-2xl font-bold tabular-nums text-highlight sm:text-3xl">
+              {usdcGrowth === null ? "—" : `${usdcGrowth >= 0 ? "+" : ""}${usdcGrowth.toFixed(1)}%`}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">USDC hoje vs ontem</p>
           </div>
         </section>
 
