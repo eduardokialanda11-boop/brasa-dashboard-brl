@@ -44,6 +44,9 @@ const demoData: HistoryPoint[] = [1.2, 1.65, 2.4, 3.15, 4.3, 5.1, 6.45, 7.05, 8.
     pontos: millions * 1_000_000,
     posicao: Math.max(12, 46 - index * 4),
     criado_em: new Date(2026, 8, 23, 9 + index).toISOString(),
+    volume_brl: millions * 420_000,
+    volume_usdc: millions * 78_000,
+    economia_vs_banco: millions * 9_400,
   }),
 );
 
@@ -242,6 +245,25 @@ function BrasaDashboard() {
                 <ArrowUpRight className="size-5" aria-hidden="true" />
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Indicadores de volume e economia */}
+        <section className="mb-5 grid gap-4 sm:grid-cols-3">
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Volume Total BRL → Pix</p>
+            <p className="mt-3 text-2xl font-bold tabular-nums sm:text-3xl">{formatBRL(totalVolumeBrl)}</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Taxa Economizada vs Bancos</p>
+            <p className="mt-3 text-2xl font-bold tabular-nums text-primary sm:text-3xl">{formatBRL(totalEconomia)}</p>
+          </div>
+          <div className="rounded-2xl border border-border bg-card p-5 sm:p-6">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Uso Solana Brasil</p>
+            <p className="mt-3 text-2xl font-bold tabular-nums text-highlight sm:text-3xl">
+              {usdcGrowth === null ? "—" : `${usdcGrowth >= 0 ? "+" : ""}${usdcGrowth.toFixed(1)}%`}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">USDC hoje vs ontem</p>
           </div>
         </section>
 
