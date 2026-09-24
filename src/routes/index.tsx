@@ -23,6 +23,19 @@ type HistoryPoint = {
   pontos: number;
   posicao: number;
   criado_em: string;
+  volume_brl: number;
+  volume_usdc: number;
+  economia_vs_banco: number;
+};
+
+// Formata valores monetários em Real (pt-BR).
+const formatBRL = (value: number) =>
+  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
+
+// Chave de dia local (AAAA-MM-DD) para comparar hoje vs ontem.
+const dayKey = (iso: string) => {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 };
 
 // This fallback keeps the dashboard complete if the public data is temporarily unavailable.
@@ -59,7 +72,7 @@ function BrasaDashboard() {
     async function fetchHistory() {
       const { data, error } = await supabase
         .from("historico_ponto")
-        .select("pontos,posicao,criado_em")
+        .select("pontos,posicao,criado_em,volume_brl,volume_usdc,economia_vs_banco")
         .order("criado_em", { ascending: true });
 
       if (!active) return;
