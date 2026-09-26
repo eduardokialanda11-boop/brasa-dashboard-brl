@@ -1,3 +1,4 @@
 # Roadmap
-- [x] Painel ao vivo: volume USDC (DexScreener) x dólar (AwesomeAPI), atualiza a cada 60s, histórico 24h no navegador
-- [x] Formatação monetária centralizada e gráfico persistente sem unir intervalos maiores que 10 minutos
+- [x] Painel alimentado exclusivamente pela tabela `daily_volumes`
+- [x] Cards com o registro diário mais recente e gráfico com até 30 registros
+- [x] Estado vazio para a base aguardando o primeiro ETL
