@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
 import { supabase } from "@/lib/supabase";
-import { formatBRL, formatBRLCompact, formatUSD } from "@/utils/format";
+import { formatBRL, formatBRLCompact } from "@/utils/format";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -40,6 +40,34 @@ const formatDate = (value: string) =>
     new Date(`${value}T12:00:00`),
   );
 
+// Cria no máximo um registro simulado por dia, a partir do último fechamento.
+async function ensureTodayDemoVolume() {
+  const today = new Date().toISOString().split("T")[0];
+  const { data: lastVolume, error: lastVolumeError } = await supabase
+    .from("daily_volumes")
+    .select("*")
+    .order("date", { ascending: false })
+    .limit(1)
+    .maybeSingle<DailyVolume>();
+
+  if (lastVolumeError) throw lastVolumeError;
+  if (!lastVolume || lastVolume.date === today) return;
+
+  const totalBRL = asNumber(lastVolume.total_brl) * 1.05;
+  const totalUSDC = asNumber(lastVolume.total_usdc) * 1.05;
+  const { error: insertError } = await supabase.from("daily_volumes").insert({
+    date: today,
+    total_brl: totalBRL,
+    total_usdc: totalUSDC,
+    economy_brl: totalBRL * 0.037,
+    points_generated: 34_000,
+    usd_brl_rate: asNumber(lastVolume.usd_brl_rate),
+  });
+
+  // Uma restrição única de data pode resolver acessos simultâneos com segurança.
+  if (insertError && insertError.code !== "23505") throw insertError;
+}
+
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
@@ -60,7 +88,17 @@ function BrasaAoVivo() {
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
 
-  async function fetchDailyVolumes() {
+  async function fetchDailyVolumes(createToday = false) {
+    let syncFailed = false;
+
+    if (createToday) {
+      try {
+        await ensureTodayDemoVolume();
+      } catch {
+        syncFailed = true;
+      }
+    }
+
     try {
       const [latestResult, historyResult] = await Promise.all([
         supabase
@@ -84,7 +122,7 @@ function BrasaAoVivo() {
 
       setLatest(latestResult.data ?? null);
       setHistorico([...(historyResult.data ?? [])].reverse());
-      setErro(false);
+      setErro(syncFailed);
     } catch {
       setErro(true);
     } finally {
@@ -94,7 +132,7 @@ function BrasaAoVivo() {
 
   // Atualiza o painel automaticamente a cada minuto.
   useEffect(() => {
-    void fetchDailyVolumes();
+    void fetchDailyVolumes(true);
     const id = setInterval(fetchDailyVolumes, 60_000);
     return () => clearInterval(id);
   }, []);
@@ -225,7 +263,7 @@ function BrasaAoVivo() {
         </section>
 
         <footer className="pt-5 text-center text-xs text-muted-foreground">
-          Fonte: Supabase daily_volumes | Tx hashes verificáveis on-chain em breve
+          Dados V1 simulados com crescimento de 5% ao dia. V2: indexação on-chain de carteiras de rampas BR via Helius API com tx verificáveis no Solscan.
         </footer>
       </div>
     </main>
