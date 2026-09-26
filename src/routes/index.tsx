@@ -14,51 +14,26 @@ import { Line } from "react-chartjs-2";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
+import { supabase } from "@/lib/supabase";
 import { formatBRL, formatBRLCompact, formatUSD } from "@/utils/format";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
-// Endereço do USDC na Solana e fontes públicas (não pedem chave nem carteira).
-const DEX_URL =
-  "https://api.dexscreener.com/latest/dex/tokens/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-const USD_BRL_URL = "https://economia.awesomeapi.com.br/json/last/USD-BRL";
-const STORAGE_KEY = "brasa_chart";
-const DAY_MS = 24 * 60 * 60 * 1000;
-const GAP_MS = 10 * 60 * 1000;
-const MAX_POINTS = 24 * 60;
-
-// Um ponto salvo no navegador para montar o gráfico.
-type Ponto = { t: number; volumeBRL: number };
+type DailyVolume = {
+  date: string;
+  total_brl: number | string | null;
+  economy_brl: number | string | null;
+  points_generated: number | string | null;
+  usd_brl_rate: number | string | null;
+  total_usdc: number | string | null;
+};
 
 const num = (v: number) => new Intl.NumberFormat("pt-BR").format(v);
-const hora = (t: number) =>
-  new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
-const horaMinuto = (t: number) =>
-  new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-
-function lerHistorico(): Ponto[] {
-  try {
-    const salvo: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-    if (!Array.isArray(salvo)) return [];
-
-    const agora = Date.now();
-    return salvo
-      .filter(
-        (p): p is Ponto =>
-          typeof p === "object" &&
-          p !== null &&
-          typeof p.t === "number" &&
-          Number.isFinite(p.t) &&
-          typeof p.volumeBRL === "number" &&
-          Number.isFinite(p.volumeBRL) &&
-          agora - p.t < DAY_MS,
-      )
-      .sort((a, b) => a.t - b.t)
-      .slice(-MAX_POINTS);
-  } catch {
-    return [];
-  }
-}
+const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
+const formatDate = (value: string) =>
+  new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(
+    new Date(`${value}T12:00:00`),
+  );
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -75,96 +50,60 @@ export const Route = createFileRoute("/")({
 });
 
 function BrasaAoVivo() {
-  const [volumeUSDC, setVolumeUSDC] = useState(0);
-  const [precoDolarBRL, setPrecoDolarBRL] = useState(0);
-  const [volumeBRL, setVolumeBRL] = useState(0);
-  const [economia, setEconomia] = useState(0);
-  const [pontosBrasa, setPontosBrasa] = useState(0);
-  const [ultimaAtualizacao, setUltimaAtualizacao] = useState<number | null>(null);
-  const [historico, setHistorico] = useState<Ponto[]>([]);
+  const [latest, setLatest] = useState<DailyVolume | null>(null);
+  const [historico, setHistorico] = useState<DailyVolume[]>([]);
+  const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
 
-  async function fetchRealData() {
+  async function fetchDailyVolumes() {
     try {
-      // 1 e 2: busca volume USDC e dólar em paralelo.
-      const [dexRes, usdRes] = await Promise.all([fetch(DEX_URL), fetch(USD_BRL_URL)]);
-      const dex = await dexRes.json();
-      const usd = await usdRes.json();
+      const [latestResult, historyResult] = await Promise.all([
+        supabase
+          .from("daily_volumes")
+          .select("*")
+          .order("date", { ascending: false })
+          .limit(1)
+          .single<DailyVolume>(),
+        supabase
+          .from("daily_volumes")
+          .select("*")
+          .order("date", { ascending: true })
+          .limit(30)
+          .returns<DailyVolume[]>(),
+      ]);
 
-      const vUSDC = Number(dex?.pairs?.[0]?.volume?.h24 ?? 0);
-      const dolar = Number(usd?.USDBRL?.bid ?? 0);
+      const isEmpty = latestResult.error?.code === "PGRST116";
+      if ((latestResult.error && !isEmpty) || historyResult.error) {
+        throw latestResult.error ?? historyResult.error;
+      }
 
-      // 3, 4 e 5: cálculos.
-      const vBRL = vUSDC * dolar;
-      const eco = vBRL * 0.037; // banco 4,5% - Solana 0,8%
-      const pts = Math.floor(vBRL / 100);
-
-      setVolumeUSDC(vUSDC);
-      setPrecoDolarBRL(dolar);
-      setVolumeBRL(vBRL);
-      setEconomia(eco);
-      setPontosBrasa(pts);
-      const agora = Date.now();
-      setUltimaAtualizacao(agora);
+      setLatest(latestResult.data ?? null);
+      setHistorico(historyResult.data ?? []);
       setErro(false);
-
-      // 6: preserva no navegador, minuto a minuto, no máximo as últimas 24h.
-      const salvo = lerHistorico();
-      const ultimo = salvo.at(-1);
-      const novo = ultimo && agora - ultimo.t < 60_000
-        ? salvo
-        : [...salvo, { t: agora, volumeBRL: vBRL }]
-            .filter((p) => agora - p.t < DAY_MS)
-            .slice(-MAX_POINTS);
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(novo));
-      setHistorico(novo);
     } catch {
       setErro(true);
+    } finally {
+      setCarregando(false);
     }
   }
 
-  // Busca ao abrir e depois a cada 60 segundos.
+  // Atualiza o painel automaticamente a cada minuto.
   useEffect(() => {
-    setHistorico(lerHistorico());
-    void fetchRealData();
-    const id = setInterval(fetchRealData, 60_000);
+    void fetchDailyVolumes();
+    const id = setInterval(fetchDailyVolumes, 60_000);
     return () => clearInterval(id);
   }, []);
 
-  const chartPoints = useMemo(() => {
-    const labels: string[] = [];
-    const values: Array<number | null> = [];
-    const timestamps: number[] = [];
-    const axisLabels: string[] = [];
-    let ultimoRotulo: number | null = null;
-
-    historico.forEach((p, index) => {
-      const anterior = historico[index - 1];
-      if (anterior && p.t - anterior.t > GAP_MS) {
-        labels.push(horaMinuto(p.t - 2));
-        values.push(anterior.volumeBRL);
-        timestamps.push(p.t - 2);
-        axisLabels.push("");
-        labels.push(horaMinuto(p.t - 1));
-        values.push(null);
-        timestamps.push(p.t - 1);
-        axisLabels.push("");
-      }
-      labels.push(horaMinuto(p.t));
-      values.push(p.volumeBRL);
-      timestamps.push(p.t);
-      const deveExibir = ultimoRotulo === null || p.t - ultimoRotulo >= 4 * 60 * 60 * 1000;
-      axisLabels.push(deveExibir ? horaMinuto(p.t) : "");
-      if (deveExibir) ultimoRotulo = p.t;
-    });
-
-    return { labels, values, timestamps, axisLabels };
-  }, [historico]);
+  const volumeBRL = asNumber(latest?.total_brl);
+  const economia = asNumber(latest?.economy_brl);
+  const pontosBrasa = asNumber(latest?.points_generated);
+  const precoDolarBRL = asNumber(latest?.usd_brl_rate);
+  const volumeUSDC = asNumber(latest?.total_usdc);
 
   const chartData = useMemo<ChartData<"line">>(() => ({
-    labels: chartPoints.labels,
+    labels: historico.map((item) => formatDate(item.date)),
     datasets: [{
-      data: chartPoints.values,
+      data: historico.map((item) => asNumber(item.total_brl)),
       borderColor: (ctx) => {
         const area = ctx.chart.chartArea;
         if (!area) return "#16a34a";
@@ -175,13 +114,13 @@ function BrasaAoVivo() {
       },
       backgroundColor: "rgba(22,163,74,0.15)",
       borderWidth: 3,
-      pointRadius: historico.length === 1 ? 4 : 0,
+      pointRadius: historico.length === 1 ? 4 : 2,
       pointBackgroundColor: "#facc15",
       spanGaps: false,
       fill: true,
       tension: 0.4,
     }],
-  }), [chartPoints, historico.length]);
+  }), [historico]);
 
   const chartOptions = useMemo<ChartOptions<"line">>(() => ({
     responsive: true,
@@ -204,7 +143,7 @@ function BrasaAoVivo() {
         ticks: {
           autoSkip: false,
           color: "#8fb09c",
-          callback: (_value, index) => chartPoints.axisLabels[index] ?? "",
+          maxTicksLimit: 8,
         },
       },
       y: {
@@ -212,7 +151,7 @@ function BrasaAoVivo() {
         ticks: { color: "#8fb09c", callback: (v) => formatBRLCompact(Number(v)) },
       },
     },
-  }), [chartPoints]);
+  }), []);
 
   const card = "rounded-2xl border border-border bg-card p-5 sm:p-6";
   const label = "text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground";
@@ -234,7 +173,7 @@ function BrasaAoVivo() {
               {erro ? "RECONECTANDO" : "AO VIVO"}
             </span>
             <span className="text-xs text-muted-foreground">
-              Última atualização: {ultimaAtualizacao ? hora(ultimaAtualizacao) : "--:--:--"}
+              Referência: {latest?.date ? formatDate(latest.date) : "--/--"}
             </span>
           </div>
         </header>
@@ -264,12 +203,15 @@ function BrasaAoVivo() {
 
         <section className={`${card} relative overflow-hidden`}>
           <h1 className="text-xl font-bold">Volume nas últimas 24h</h1>
-          <p className="mb-5 mt-1 text-sm text-muted-foreground">Um ponto por minuto enquanto a página estiver aberta</p>
-          <div className="h-64 sm:h-80">
-            {historico.length ? (
+          <div className="mt-5 h-64 sm:h-80">
+            {carregando ? (
+              <p className="pt-20 text-center text-sm text-muted-foreground">Carregando dados…</p>
+            ) : historico.length ? (
               <Line data={chartData} options={chartOptions} />
             ) : (
-              <p className="pt-20 text-center text-sm text-muted-foreground">Coletando primeiros dados…</p>
+              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border bg-background/25 px-5 text-center">
+                <p className="text-base font-semibold text-muted-foreground">Base pronta - aguardando primeiro ETL</p>
+              </div>
             )}
           </div>
         </section>
