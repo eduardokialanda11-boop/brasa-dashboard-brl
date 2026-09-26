@@ -202,7 +202,7 @@ function BrasaAoVivo() {
         </section>
 
         <section className={`${card} relative overflow-hidden`}>
-          <h1 className="text-xl font-bold">Volume nas últimas 24h</h1>
+          <h1 className="text-xl font-bold">Volume nos últimos 7 dias</h1>
           <div className="mt-5 h-64 sm:h-80">
             {carregando ? (
               <p className="pt-20 text-center text-sm text-muted-foreground">Carregando dados…</p>
@@ -215,6 +215,10 @@ function BrasaAoVivo() {
             )}
           </div>
         </section>
+
+        <footer className="pt-5 text-center text-xs text-muted-foreground">
+          Fonte: Supabase daily_volumes | Tx hashes verificáveis on-chain em breve
+        </footer>
       </div>
     </main>
   );
