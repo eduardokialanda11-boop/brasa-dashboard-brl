@@ -11,7 +11,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { Activity, ArrowUpRight } from "lucide-react";
+import { Activity, ArrowUpRight, Flame } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
@@ -320,7 +320,10 @@ function BrasaDashboard() {
           {tokens.length === 0 ? (
             /* Estado vazio: base criada, mas o ETL ainda não rodou */
             <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-6 py-14 text-center">
-              <span className="text-4xl" aria-hidden="true">🔥</span>
+              {/* Chama em destaque amarelo, como o logo */}
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-accent">
+                <Flame className="size-6 text-highlight" aria-hidden="true" />
+              </div>
               <p className="text-lg font-bold">Base pronta para produção</p>
               <p className="text-sm text-muted-foreground">Aguardando ETL</p>
             </div>
