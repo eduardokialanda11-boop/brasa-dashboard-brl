@@ -1,6 +1,2 @@
 # Roadmap
-
-- [x] Criar sistema visual dark premium do Brasa Points
-- [x] Exibir pontuação, posição e gráfico histórico
-- [x] Conectar automaticamente à tabela historico_ponto, sem formulário
-- [x] Validar o painel em celular e desktop
+- [x] Painel ao vivo: volume USDC (DexScreener) x dólar (AwesomeAPI), atualiza a cada 60s, histórico 24h no navegador
