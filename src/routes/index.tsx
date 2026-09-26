@@ -11,7 +11,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { Activity, ArrowUpRight } from "lucide-react";
+import { Activity, ArrowUpRight, Flame } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
@@ -26,6 +26,14 @@ type HistoryPoint = {
   volume_brl: number;
   volume_usdc: number;
   economia_vs_banco: number;
+};
+
+// Linha da tabela "tokens" usada pelo Brasa Scanner.
+type TokenRow = {
+  nome: string;
+  symbol: string;
+  score: number;
+  status: string;
 };
 
 // Formata valores monetários em Real (pt-BR).
@@ -67,6 +75,7 @@ export const Route = createFileRoute("/")({
 function BrasaDashboard() {
   const [history, setHistory] = useState<HistoryPoint[]>(demoData);
   const [status, setStatus] = useState<"loading" | "connected" | "error">("loading");
+  const [tokens, setTokens] = useState<TokenRow[]>([]);
 
   // Load the public history automatically whenever the dashboard opens.
   useEffect(() => {
@@ -88,7 +97,21 @@ function BrasaDashboard() {
       setStatus("connected");
     }
 
+    // Brasa Scanner: ranking de tokens por score (maior primeiro).
+    // Roda sempre, independente do histórico, para não bloquear o dashboard.
+    async function fetchTokens() {
+      const { data, error } = await supabase
+        .from("tokens")
+        .select("nome,symbol,score,status")
+        .order("score", { ascending: false });
+
+      if (!active) return;
+      // Erro (tabela ausente/sem permissão) ou base vazia = "aguardando ETL".
+      setTokens(error || !data ? [] : (data as TokenRow[]));
+    }
+
     void fetchHistory();
+    void fetchTokens();
     return () => {
       active = false;
     };
@@ -280,6 +303,63 @@ function BrasaDashboard() {
           <div className="relative h-64 w-full sm:h-80">
             <Line data={chartData} options={chartOptions} />
           </div>
+        </section>
+
+        {/* Brasa Scanner: ranking de tokens da tabela "tokens" */}
+        <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-8">
+          <div className="mb-5 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-xl font-bold sm:text-2xl">Brasa Scanner</h2>
+              <p className="mt-1 text-sm text-muted-foreground">Ranking de tokens por score</p>
+            </div>
+            <span className="relative rounded-lg bg-accent px-3 py-1.5 text-xs font-bold text-accent-foreground">
+              {tokens.length} {tokens.length === 1 ? "token" : "tokens"}
+            </span>
+          </div>
+
+          {tokens.length === 0 ? (
+            /* Estado vazio: base criada, mas o ETL ainda não rodou */
+            <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-border bg-secondary/50 px-6 py-14 text-center">
+              {/* Chama em destaque amarelo, como o logo */}
+              <div className="flex size-12 items-center justify-center rounded-2xl bg-accent">
+                <Flame className="size-6 text-highlight" aria-hidden="true" />
+              </div>
+              <p className="text-lg font-bold">Base pronta para produção</p>
+              <p className="text-sm text-muted-foreground">Aguardando ETL</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-sm">
+                <thead>
+                  <tr className="border-b border-border text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">
+                    <th className="px-3 py-3">Nome</th>
+                    <th className="px-3 py-3">Symbol</th>
+                    <th className="px-3 py-3 text-right">Score</th>
+                    <th className="px-3 py-3 text-right">Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {tokens.map((token, index) => (
+                    <tr
+                      key={`${token.symbol}-${index}`}
+                      className="border-b border-border/60 transition-colors last:border-0 hover:bg-accent/40"
+                    >
+                      <td className="px-3 py-3 font-semibold">{token.nome}</td>
+                      <td className="px-3 py-3 text-muted-foreground">{token.symbol}</td>
+                      <td className="px-3 py-3 text-right font-bold tabular-nums text-primary">
+                        {token.score}
+                      </td>
+                      <td className="px-3 py-3 text-right">
+                        <span className="rounded-lg bg-accent px-2.5 py-1 text-xs font-bold text-accent-foreground">
+                          {token.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </section>
       </div>
     </main>
