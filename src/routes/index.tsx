@@ -141,6 +141,10 @@ function BrasaAoVivo() {
     historico.forEach((p, index) => {
       const anterior = historico[index - 1];
       if (anterior && p.t - anterior.t > GAP_MS) {
+        labels.push(horaMinuto(p.t - 2));
+        values.push(anterior.volumeBRL);
+        timestamps.push(p.t - 2);
+        axisLabels.push("");
         labels.push(horaMinuto(p.t - 1));
         values.push(null);
         timestamps.push(p.t - 1);
