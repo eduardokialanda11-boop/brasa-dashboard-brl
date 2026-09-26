@@ -14,6 +14,7 @@ import { Line } from "react-chartjs-2";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
+import { formatBRL, formatBRLCompact, formatUSD } from "@/utils/format";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -21,17 +22,43 @@ ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, 
 const DEX_URL =
   "https://api.dexscreener.com/latest/dex/tokens/EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 const USD_BRL_URL = "https://economia.awesomeapi.com.br/json/last/USD-BRL";
-const STORAGE_KEY = "brasa-historico-24h";
+const STORAGE_KEY = "brasa_chart";
 const DAY_MS = 24 * 60 * 60 * 1000;
+const GAP_MS = 10 * 60 * 1000;
+const MAX_POINTS = 24 * 60;
 
 // Um ponto salvo no navegador para montar o gráfico.
 type Ponto = { t: number; volumeBRL: number };
 
-const brl = (v: number) =>
-  new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 const num = (v: number) => new Intl.NumberFormat("pt-BR").format(v);
 const hora = (t: number) =>
   new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
+const horaMinuto = (t: number) =>
+  new Date(t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
+
+function lerHistorico(): Ponto[] {
+  try {
+    const salvo: unknown = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
+    if (!Array.isArray(salvo)) return [];
+
+    const agora = Date.now();
+    return salvo
+      .filter(
+        (p): p is Ponto =>
+          typeof p === "object" &&
+          p !== null &&
+          typeof p.t === "number" &&
+          Number.isFinite(p.t) &&
+          typeof p.volumeBRL === "number" &&
+          Number.isFinite(p.volumeBRL) &&
+          agora - p.t < DAY_MS,
+      )
+      .sort((a, b) => a.t - b.t)
+      .slice(-MAX_POINTS);
+  } catch {
+    return [];
+  }
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -81,9 +108,11 @@ function BrasaAoVivo() {
       setUltimaAtualizacao(agora);
       setErro(false);
 
-      // 6: guarda no navegador só as últimas 24h.
-      const salvo: Ponto[] = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? "[]");
-      const novo = [...salvo, { t: agora, volumeBRL: vBRL }].filter((p) => agora - p.t < DAY_MS);
+      // 6: preserva no navegador, minuto a minuto, no máximo as últimas 24h.
+      const salvo = lerHistorico();
+      const novo = [...salvo, { t: agora, volumeBRL: vBRL }]
+        .filter((p) => agora - p.t < DAY_MS)
+        .slice(-MAX_POINTS);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(novo));
       setHistorico(novo);
     } catch {
@@ -93,15 +122,36 @@ function BrasaAoVivo() {
 
   // Busca ao abrir e depois a cada 60 segundos.
   useEffect(() => {
+    setHistorico(lerHistorico());
     void fetchRealData();
     const id = setInterval(fetchRealData, 60_000);
     return () => clearInterval(id);
   }, []);
 
+  const chartPoints = useMemo(() => {
+    const labels: string[] = [];
+    const values: Array<number | null> = [];
+    const timestamps: number[] = [];
+
+    historico.forEach((p, index) => {
+      const anterior = historico[index - 1];
+      if (anterior && p.t - anterior.t > GAP_MS) {
+        labels.push(horaMinuto(p.t - 1));
+        values.push(null);
+        timestamps.push(p.t - 1);
+      }
+      labels.push(horaMinuto(p.t));
+      values.push(p.volumeBRL);
+      timestamps.push(p.t);
+    });
+
+    return { labels, values, timestamps };
+  }, [historico]);
+
   const chartData = useMemo<ChartData<"line">>(() => ({
-    labels: historico.map((p) => new Date(p.t).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })),
+    labels: chartPoints.labels,
     datasets: [{
-      data: historico.map((p) => p.volumeBRL / 1_000_000),
+      data: chartPoints.values,
       borderColor: (ctx) => {
         const area = ctx.chart.chartArea;
         if (!area) return "#16a34a";
@@ -114,10 +164,11 @@ function BrasaAoVivo() {
       borderWidth: 3,
       pointRadius: historico.length === 1 ? 4 : 0,
       pointBackgroundColor: "#facc15",
+      spanGaps: false,
       fill: true,
       tension: 0.4,
     }],
-  }), [historico]);
+  }), [chartPoints, historico.length]);
 
   const chartOptions = useMemo<ChartOptions<"line">>(() => ({
     responsive: true,
@@ -128,14 +179,48 @@ function BrasaAoVivo() {
       tooltip: {
         backgroundColor: "#132a1f",
         displayColors: false,
-        callbacks: { label: (c) => `R$ ${Number(c.parsed.y).toFixed(2)}M` },
+        callbacks: {
+          title: (items) => items[0]?.label ?? "",
+          label: (c) => formatBRLCompact(Number(c.parsed.y)),
+        },
       },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { color: "#8fb09c", maxTicksLimit: 6 } },
-      y: { grid: { color: "rgba(143,176,156,.08)" }, ticks: { color: "#8fb09c", callback: (v) => `R$${v}M` } },
+      x: {
+        grid: { display: false },
+        ticks: {
+          autoSkip: false,
+          color: "#8fb09c",
+          callback: (_value, index) => {
+            const timestamp = chartPoints.timestamps[index];
+            if (timestamp === undefined) return "";
+            const previousVisible = chartPoints.timestamps
+              .slice(0, index)
+              .reverse()
+              .find((candidate, reverseIndex) => {
+                const candidateIndex = index - reverseIndex - 1;
+                if (chartPoints.values[candidateIndex] === null) return false;
+                const earlier = chartPoints.timestamps
+                  .slice(0, candidateIndex)
+                  .reverse()
+                  .find((_, earlierReverseIndex) => {
+                    const earlierIndex = candidateIndex - earlierReverseIndex - 1;
+                    return chartPoints.values[earlierIndex] !== null;
+                  });
+                return earlier === undefined || candidate - earlier >= 4 * 60 * 60 * 1000;
+              });
+            const isFirstPoint = chartPoints.values.slice(0, index).every((value) => value === null);
+            const isFourHoursAfterVisible = previousVisible === undefined || timestamp - previousVisible >= 4 * 60 * 60 * 1000;
+            return isFirstPoint || isFourHoursAfterVisible ? horaMinuto(timestamp) : "";
+          },
+        },
+      },
+      y: {
+        grid: { color: "rgba(143,176,156,.08)" },
+        ticks: { color: "#8fb09c", callback: (v) => formatBRLCompact(Number(v)) },
+      },
     },
-  }), []);
+  }), [chartPoints]);
 
   const card = "rounded-2xl border border-border bg-card p-5 sm:p-6";
   const label = "text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground";
@@ -164,13 +249,13 @@ function BrasaAoVivo() {
 
         <section className={`${card} mb-4`}>
           <p className={label}>Volume total hoje</p>
-          <p className="mt-3 text-[clamp(2.2rem,8vw,5rem)] font-bold leading-none tabular-nums">{brl(volumeBRL)}</p>
+          <p className="mt-3 text-[clamp(2.2rem,8vw,5rem)] font-bold leading-none tabular-nums">{formatBRL(volumeBRL)}</p>
         </section>
 
         <section className="mb-4 grid gap-4 sm:grid-cols-3">
           <div className={card}>
             <p className={label}>Economia vs bancos</p>
-            <p className="mt-3 text-2xl font-bold tabular-nums text-primary">{brl(economia)}</p>
+            <p className="mt-3 text-2xl font-bold tabular-nums text-primary">{formatBRL(economia)}</p>
             <p className="mt-1 text-xs text-muted-foreground">3,7% (banco 4,5% − Solana 0,8%)</p>
           </div>
           <div className={card}>
@@ -180,8 +265,8 @@ function BrasaAoVivo() {
           </div>
           <div className={card}>
             <p className={label}>Dólar agora</p>
-            <p className="mt-3 text-2xl font-bold tabular-nums">{brl(precoDolarBRL)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Volume USDC 24h: US$ {num(Math.round(volumeUSDC))}</p>
+            <p className="mt-3 text-2xl font-bold tabular-nums">{formatBRL(precoDolarBRL)}</p>
+            <p className="mt-1 text-xs text-muted-foreground">Volume USDC 24h: {formatUSD(volumeUSDC)}</p>
           </div>
         </section>
 
