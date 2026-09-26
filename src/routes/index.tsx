@@ -46,17 +46,6 @@ const dayKey = (iso: string) => {
   return `${d.getFullYear()}-${d.getMonth()}-${d.getDate()}`;
 };
 
-// This fallback keeps the dashboard complete if the public data is temporarily unavailable.
-const demoData: HistoryPoint[] = [1.2, 1.65, 2.4, 3.15, 4.3, 5.1, 6.45, 7.05, 8.15, 8.7, 9.2].map(
-  (millions, index) => ({
-    pontos: millions * 1_000_000,
-    posicao: Math.max(12, 46 - index * 4),
-    criado_em: new Date(2026, 8, 23, 9 + index).toISOString(),
-    volume_brl: millions * 420_000,
-    volume_usdc: millions * 78_000,
-    economia_vs_banco: millions * 9_400,
-  }),
-);
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -73,7 +62,8 @@ export const Route = createFileRoute("/")({
 });
 
 function BrasaDashboard() {
-  const [history, setHistory] = useState<HistoryPoint[]>(demoData);
+  // Apenas dados reais: começa vazio e mostra 0 até o Supabase responder.
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [status, setStatus] = useState<"loading" | "connected" | "error">("loading");
   const [tokens, setTokens] = useState<TokenRow[]>([]);
 
@@ -117,10 +107,17 @@ function BrasaDashboard() {
     };
   }, []);
 
-  const latest = history.at(-1) ?? demoData.at(-1);
-  const first = history.at(0) ?? demoData.at(0);
-  const pointsInMillions = latest ? latest.pontos / 1_000_000 : 0;
-  const gainedInMillions = first ? pointsInMillions - first.pontos / 1_000_000 : 0;
+  const latest = history.at(-1);
+  const first = history.at(0);
+
+  // Pontuação real = SELECT SUM(pontos) da tabela historico_ponto (não mock).
+  const totalPontos = history.reduce((sum, row) => sum + (row.pontos ?? 0), 0);
+  const showMillions = totalPontos >= 1_000_000;
+  const displayPontos = showMillions
+    ? (totalPontos / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })
+    : totalPontos.toLocaleString("pt-BR");
+  const gainedInMillions =
+    latest && first ? (latest.pontos - first.pontos) / 1_000_000 : 0;
 
   // Totais dos novos indicadores (somam apenas linhas reais do Supabase).
   const totalVolumeBrl = history.reduce((sum, row) => sum + (row.volume_brl ?? 0), 0);
@@ -243,7 +240,7 @@ function BrasaDashboard() {
           </div>
           <div className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
             <span className={`size-2 rounded-full ${status === "connected" ? "bg-highlight shadow-[0_0_10px_var(--highlight)]" : "bg-muted-foreground"}`} />
-            {status === "connected" ? "Ao vivo" : status === "loading" ? "Atualizando" : "Última atualização"}
+            {status === "connected" ? "Ao vivo" : status === "loading" ? "Atualizando" : "Sem dados"}
           </div>
         </header>
 
@@ -255,7 +252,7 @@ function BrasaDashboard() {
                 Pontuação total
               </div>
               <p className="text-[clamp(3rem,11vw,7rem)] font-bold leading-[0.84] tracking-normal tabular-nums">
-                {pointsInMillions.toFixed(1)}<span className="text-primary">M</span>
+                {displayPontos}{showMillions && <span className="text-primary">M</span>}
               </p>
               <p className="mt-4 text-sm font-bold uppercase tracking-[0.2em] text-muted-foreground">Pontos</p>
             </div>
@@ -290,6 +287,8 @@ function BrasaDashboard() {
           </div>
         </section>
 
+        {/* O gráfico só aparece com dados reais; base vazia = escondido. */}
+        {history.length > 0 && (
         <section className="relative mb-8 overflow-hidden rounded-2xl border border-border bg-card/70 p-5 backdrop-blur-xl sm:p-8">
           {/* Subtle blurred glow behind the chart */}
           <div aria-hidden="true" className="pointer-events-none absolute -bottom-24 left-1/4 h-64 w-2/3 rounded-full bg-[image:var(--gradient-brand)] opacity-20 blur-3xl" />
@@ -304,6 +303,7 @@ function BrasaDashboard() {
             <Line data={chartData} options={chartOptions} />
           </div>
         </section>
+        )}
 
         {/* Brasa Scanner: ranking de tokens da tabela "tokens" */}
         <section className="overflow-hidden rounded-2xl border border-border bg-card p-5 sm:p-8">
