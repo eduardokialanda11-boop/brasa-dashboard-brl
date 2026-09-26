@@ -110,9 +110,12 @@ function BrasaAoVivo() {
 
       // 6: preserva no navegador, minuto a minuto, no máximo as últimas 24h.
       const salvo = lerHistorico();
-      const novo = [...salvo, { t: agora, volumeBRL: vBRL }]
-        .filter((p) => agora - p.t < DAY_MS)
-        .slice(-MAX_POINTS);
+      const ultimo = salvo.at(-1);
+      const novo = ultimo && agora - ultimo.t < 60_000
+        ? salvo
+        : [...salvo, { t: agora, volumeBRL: vBRL }]
+            .filter((p) => agora - p.t < DAY_MS)
+            .slice(-MAX_POINTS);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(novo));
       setHistorico(novo);
     } catch {
@@ -132,6 +135,8 @@ function BrasaAoVivo() {
     const labels: string[] = [];
     const values: Array<number | null> = [];
     const timestamps: number[] = [];
+    const axisLabels: string[] = [];
+    let ultimoRotulo: number | null = null;
 
     historico.forEach((p, index) => {
       const anterior = historico[index - 1];
@@ -139,13 +144,17 @@ function BrasaAoVivo() {
         labels.push(horaMinuto(p.t - 1));
         values.push(null);
         timestamps.push(p.t - 1);
+        axisLabels.push("");
       }
       labels.push(horaMinuto(p.t));
       values.push(p.volumeBRL);
       timestamps.push(p.t);
+      const deveExibir = ultimoRotulo === null || p.t - ultimoRotulo >= 4 * 60 * 60 * 1000;
+      axisLabels.push(deveExibir ? horaMinuto(p.t) : "");
+      if (deveExibir) ultimoRotulo = p.t;
     });
 
-    return { labels, values, timestamps };
+    return { labels, values, timestamps, axisLabels };
   }, [historico]);
 
   const chartData = useMemo<ChartData<"line">>(() => ({
@@ -191,28 +200,7 @@ function BrasaAoVivo() {
         ticks: {
           autoSkip: false,
           color: "#8fb09c",
-          callback: (_value, index) => {
-            const timestamp = chartPoints.timestamps[index];
-            if (timestamp === undefined) return "";
-            const previousVisible = chartPoints.timestamps
-              .slice(0, index)
-              .reverse()
-              .find((candidate, reverseIndex) => {
-                const candidateIndex = index - reverseIndex - 1;
-                if (chartPoints.values[candidateIndex] === null) return false;
-                const earlier = chartPoints.timestamps
-                  .slice(0, candidateIndex)
-                  .reverse()
-                  .find((_, earlierReverseIndex) => {
-                    const earlierIndex = candidateIndex - earlierReverseIndex - 1;
-                    return chartPoints.values[earlierIndex] !== null;
-                  });
-                return earlier === undefined || candidate - earlier >= 4 * 60 * 60 * 1000;
-              });
-            const isFirstPoint = chartPoints.values.slice(0, index).every((value) => value === null);
-            const isFourHoursAfterVisible = previousVisible === undefined || timestamp - previousVisible >= 4 * 60 * 60 * 1000;
-            return isFirstPoint || isFourHoursAfterVisible ? horaMinuto(timestamp) : "";
-          },
+          callback: (_value, index) => chartPoints.axisLabels[index] ?? "",
         },
       },
       y: {
