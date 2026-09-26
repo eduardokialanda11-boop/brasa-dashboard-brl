@@ -28,6 +28,14 @@ type HistoryPoint = {
   economia_vs_banco: number;
 };
 
+// Linha da tabela "tokens" usada pelo Brasa Scanner.
+type TokenRow = {
+  nome: string;
+  symbol: string;
+  score: number;
+  status: string;
+};
+
 // Formata valores monetários em Real (pt-BR).
 const formatBRL = (value: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(value);
@@ -67,6 +75,7 @@ export const Route = createFileRoute("/")({
 function BrasaDashboard() {
   const [history, setHistory] = useState<HistoryPoint[]>(demoData);
   const [status, setStatus] = useState<"loading" | "connected" | "error">("loading");
+  const [tokens, setTokens] = useState<TokenRow[]>([]);
 
   // Load the public history automatically whenever the dashboard opens.
   useEffect(() => {
@@ -86,6 +95,16 @@ function BrasaDashboard() {
 
       setHistory(data as HistoryPoint[]);
       setStatus("connected");
+      // Brasa Scanner: ranking de tokens por score (maior primeiro).
+      const { data: tokenData } = await supabase
+        .from("tokens")
+        .select("nome,symbol,score,status")
+        .order("score", { ascending: false });
+
+      if (!active) return;
+      // Em caso de erro (tabela ausente/sem permissão) tratamos como vazio
+      // e mostramos o estado "aguardando ETL".
+      setTokens((tokenData ?? []) as TokenRow[]);
     }
 
     void fetchHistory();
