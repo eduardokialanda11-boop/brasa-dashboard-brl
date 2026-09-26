@@ -100,33 +100,27 @@ function BrasaAoVivo() {
     }
 
     try {
-      const [latestResult, historyResult] = await Promise.all([
-        supabase
-          .from("daily_volumes")
-          .select("*")
-          .order("date", { ascending: false })
-          .limit(1)
-          .single<DailyVolume>(),
-        supabase
-          .from("daily_volumes")
-          .select("*")
-          .order("date", { ascending: false })
-          .limit(7)
-          .returns<DailyVolume[]>(),
-      ]);
+      const { data, error } = await supabase
+        .from("daily_volumes")
+        .select("*")
+        .order("date", { ascending: false })
+        .limit(7)
+        .returns<DailyVolume[]>();
 
-      const isEmpty = latestResult.error?.code === "PGRST116";
-      if ((latestResult.error && !isEmpty) || historyResult.error) {
-        throw latestResult.error ?? historyResult.error;
-      }
+      console.log("Dados buscados:", data);
 
-      setLatest(latestResult.data ?? null);
-      setHistorico([...(historyResult.data ?? [])].reverse());
+      if (error) throw error;
+
+      const rows = data ?? [];
+      setLatest(rows[0] ?? null);
+      setHistorico([...rows].reverse());
       setErro(syncFailed);
+      setCarregando(rows.length === 0);
     } catch {
       setErro(true);
-    } finally {
-      setCarregando(false);
+      setLatest(null);
+      setHistorico([]);
+      setCarregando(true);
     }
   }
 
@@ -255,9 +249,7 @@ function BrasaAoVivo() {
             ) : historico.length ? (
               <Line data={chartData} options={chartOptions} />
             ) : (
-              <div className="flex h-full items-center justify-center rounded-xl border border-dashed border-border bg-background/25 px-5 text-center">
-                <p className="text-base font-semibold text-muted-foreground">Base pronta - aguardando primeiro ETL</p>
-              </div>
+              <p className="pt-20 text-center text-sm text-muted-foreground">Carregando...</p>
             )}
           </div>
         </section>
