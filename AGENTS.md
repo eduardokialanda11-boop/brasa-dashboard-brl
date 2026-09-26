@@ -11,3 +11,4 @@
 
 - Keep all dashboard currency presentation in `src/utils/format.ts` so cards and charts use identical locale-safe formatting.
 - Use `daily_volumes` through the browser Supabase client as the dashboard's only data source; it keeps displayed totals aligned with ETL output.
+- Create the hackathon's daily 5% demo row from the browser only on initial page load; this keeps the prototype automatic without adding a scheduler.
