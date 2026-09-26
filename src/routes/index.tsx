@@ -110,12 +110,13 @@ function BrasaDashboard() {
   const latest = history.at(-1);
   const first = history.at(0);
 
-  // Pontuação real = SELECT SUM(pontos) da tabela historico_ponto (não mock).
-  const totalPontos = history.reduce((sum, row) => sum + (row.pontos ?? 0), 0);
+  // Pontuação real = SELECT SUM(volume_brl) / 100 (regra 100 = 1 ponto, não mock).
+  // Se a tabela estiver vazia, history é [] e o resultado é 0 pontos.
+  const totalPontos = history.reduce((sum, row) => sum + (row.volume_brl ?? 0), 0) / 100;
   const showMillions = totalPontos >= 1_000_000;
   const displayPontos = showMillions
-    ? (totalPontos / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })
-    : totalPontos.toLocaleString("pt-BR");
+    ? (totalPontos / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 2 })
+    : totalPontos.toLocaleString("pt-BR", { maximumFractionDigits: 0 });
   const gainedInMillions =
     latest && first ? (latest.pontos - first.pontos) / 1_000_000 : 0;
 
