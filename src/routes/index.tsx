@@ -29,6 +29,11 @@ type DailyVolume = {
 };
 
 const num = (v: number) => new Intl.NumberFormat("pt-BR").format(v);
+const numCompact = (v: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(v);
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(
@@ -67,8 +72,8 @@ function BrasaAoVivo() {
         supabase
           .from("daily_volumes")
           .select("*")
-          .order("date", { ascending: true })
-          .limit(30)
+          .order("date", { ascending: false })
+          .limit(7)
           .returns<DailyVolume[]>(),
       ]);
 
@@ -78,7 +83,7 @@ function BrasaAoVivo() {
       }
 
       setLatest(latestResult.data ?? null);
-      setHistorico(historyResult.data ?? []);
+      setHistorico([...(historyResult.data ?? [])].reverse());
       setErro(false);
     } catch {
       setErro(true);
@@ -179,25 +184,28 @@ function BrasaAoVivo() {
         </header>
 
         <section className={`${card} mb-4`}>
-          <p className={label}>Volume total hoje</p>
-          <p className="mt-3 text-[clamp(2.2rem,8vw,5rem)] font-bold leading-none tabular-nums">{formatBRL(volumeBRL)}</p>
-        </section>
-
-        <section className="mb-4 grid gap-4 sm:grid-cols-3">
-          <div className={card}>
-            <p className={label}>Economia vs bancos</p>
-            <p className="mt-3 text-2xl font-bold tabular-nums text-primary">{formatBRL(economia)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">3,7% (banco 4,5% − Solana 0,8%)</p>
+          <p className={label}>Resumo de hoje</p>
+          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-border">
+            <div>
+              <p className="text-xs font-semibold text-muted-foreground">Volume hoje</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(volumeBRL)}</p>
+            </div>
+            <div className="lg:pl-5">
+              <p className="text-xs font-semibold text-muted-foreground">Volume na Solana</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums">{num(volumeUSDC)} <span className="text-sm text-muted-foreground">USDC</span></p>
+            </div>
+            <div className="lg:pl-5">
+              <p className="text-xs font-semibold text-muted-foreground">Economia vs bancos</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(economia)}</p>
+              <p className="mt-1 text-xs text-muted-foreground">3,7%</p>
+            </div>
+            <div className="lg:pl-5">
+              <p className="text-xs font-semibold text-muted-foreground">Pontos Brasa</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">{numCompact(pontosBrasa)} <span className="text-sm text-muted-foreground">pontos</span></p>
+            </div>
           </div>
-          <div className={card}>
-            <p className={label}>Pontos Brasa gerados hoje</p>
-            <p className="mt-3 text-2xl font-bold tabular-nums text-highlight">{num(pontosBrasa)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">R$ 100 = 1 ponto</p>
-          </div>
-          <div className={card}>
-            <p className={label}>Dólar agora</p>
-            <p className="mt-3 text-2xl font-bold tabular-nums">{formatBRL(precoDolarBRL)}</p>
-            <p className="mt-1 text-xs text-muted-foreground">Volume USDC 24h: {formatUSD(volumeUSDC)}</p>
+          <div className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">
+            Dólar agora: <span className="font-semibold text-foreground">{formatBRL(precoDolarBRL)}</span>
           </div>
         </section>
 
