@@ -245,7 +245,7 @@ function BrasaAoVivo() {
           <h1 className="text-xl font-bold">Volume nos últimos 7 dias</h1>
           <div className="mt-5 h-64 sm:h-80">
             {carregando ? (
-              <p className="pt-20 text-center text-sm text-muted-foreground">Carregando dados…</p>
+              <p className="pt-20 text-center text-sm text-muted-foreground">Carregando...</p>
             ) : historico.length ? (
               <Line data={chartData} options={chartOptions} />
             ) : (
