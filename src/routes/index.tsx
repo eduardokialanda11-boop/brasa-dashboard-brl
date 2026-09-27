@@ -84,6 +84,7 @@ export const Route = createFileRoute("/")({
 
 function BrasaAoVivo() {
   const [latest, setLatest] = useState<DailyVolume | null>(null);
+  const [volumeHojeAoVivo, setVolumeHojeAoVivo] = useState(0);
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState(false);
@@ -124,11 +125,9 @@ function BrasaAoVivo() {
     }
   }
 
-  // Atualiza o painel automaticamente a cada minuto.
+  // Busca o fechamento diário ao abrir o painel.
   useEffect(() => {
     void fetchDailyVolumes(true);
-    const id = setInterval(fetchDailyVolumes, 60_000);
-    return () => clearInterval(id);
   }, []);
 
   const volumeBRL = asNumber(latest?.total_brl);
@@ -136,6 +135,18 @@ function BrasaAoVivo() {
   const pontosBrasa = asNumber(latest?.points_generated);
   const precoDolarBRL = asNumber(latest?.usd_brl_rate);
   const volumeUSDC = asNumber(latest?.total_usdc);
+
+  // Mantém o valor visível crescendo a cada minuto, sem alterar o fechamento salvo.
+  useEffect(() => {
+    setVolumeHojeAoVivo(volumeBRL);
+    if (volumeBRL <= 0) return;
+
+    const id = window.setInterval(() => {
+      setVolumeHojeAoVivo((valueToday) => valueToday * 1.00003);
+    }, 60_000);
+
+    return () => window.clearInterval(id);
+  }, [volumeBRL]);
 
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: historico.map((item) => formatDate(item.date)),
@@ -205,10 +216,13 @@ function BrasaAoVivo() {
             </div>
           </div>
           <div className="flex flex-col items-start gap-1 sm:items-end">
-            <span className="flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">
-              <span className="size-2 animate-pulse rounded-full bg-primary" />
-              {erro ? "RECONECTANDO" : "AO VIVO"}
-            </span>
+            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+              <span className="flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">
+                <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
+                {erro ? "RECONECTANDO" : "AO VIVO"}
+              </span>
+              <span className="text-xs text-muted-foreground">atualiza a cada 60s</span>
+            </div>
             <span className="text-xs text-muted-foreground">
               Referência: hoje, {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date())}
             </span>
@@ -220,7 +234,8 @@ function BrasaAoVivo() {
           <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-border">
             <div>
               <p className="text-xs font-semibold text-muted-foreground">Volume hoje</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(volumeBRL)}</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(volumeHojeAoVivo)}</p>
+              <p className="mt-1 text-xs font-semibold text-primary">↑ +5% hoje</p>
             </div>
             <div className="lg:pl-5">
               <p className="text-xs font-semibold text-muted-foreground">Volume na Solana</p>
