@@ -3,4 +3,4 @@
 - [x] Resumo consolidado com o registro diário mais recente e gráfico com os últimos 7 registros
 - [x] Estado vazio para a base aguardando o primeiro ETL
 - [x] Crescimento diário simulado de 5% criado automaticamente ao abrir o painel
-- [x] Efeito ao vivo no volume, com acréscimo visual de 0,003% a cada 60 segundos
+- [x] Resumo ao vivo unificado, com todos os indicadores derivados do BRL e acréscimo visual de 0,003% a cada 60 segundos
