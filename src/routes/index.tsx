@@ -87,16 +87,13 @@ function BrasaAoVivo() {
   const [volumeHojeAoVivo, setVolumeHojeAoVivo] = useState(0);
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
   const [carregando, setCarregando] = useState(true);
-  const [erro, setErro] = useState(false);
 
   async function fetchDailyVolumes(createToday = false) {
-    let syncFailed = false;
-
     if (createToday) {
       try {
         await ensureTodayDemoVolume();
       } catch {
-        syncFailed = true;
+        // O efeito ao vivo continua usando o último fechamento disponível.
       }
     }
 
@@ -115,10 +112,8 @@ function BrasaAoVivo() {
       const rows = data ?? [];
       setLatest(rows[0] ?? null);
       setHistorico([...rows].reverse());
-      setErro(syncFailed);
       setCarregando(rows.length === 0);
     } catch {
-      setErro(true);
       setLatest(null);
       setHistorico([]);
       setCarregando(true);
@@ -219,7 +214,7 @@ function BrasaAoVivo() {
             <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
               <span className="flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">
                 <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-                {erro ? "RECONECTANDO" : "AO VIVO"}
+                AO VIVO
               </span>
               <span className="text-xs text-muted-foreground">atualiza a cada 60s</span>
             </div>
