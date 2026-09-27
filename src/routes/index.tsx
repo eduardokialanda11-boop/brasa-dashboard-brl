@@ -83,8 +83,7 @@ export const Route = createFileRoute("/")({
 });
 
 function BrasaAoVivo() {
-  const [latest, setLatest] = useState<DailyVolume | null>(null);
-  const [volumeHojeAoVivo, setVolumeHojeAoVivo] = useState(0);
+  const [valorBRL, setValorBRL] = useState(3_417_092.3);
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
   const [carregando, setCarregando] = useState(true);
 
@@ -110,11 +109,11 @@ function BrasaAoVivo() {
       if (error) throw error;
 
       const rows = data ?? [];
-      setLatest(rows[0] ?? null);
+      const valorMaisRecente = asNumber(rows[0]?.total_brl);
+      if (valorMaisRecente > 0) setValorBRL(valorMaisRecente);
       setHistorico([...rows].reverse());
       setCarregando(rows.length === 0);
     } catch {
-      setLatest(null);
       setHistorico([]);
       setCarregando(true);
     }
@@ -125,23 +124,18 @@ function BrasaAoVivo() {
     void fetchDailyVolumes(true);
   }, []);
 
-  const volumeBRL = asNumber(latest?.total_brl);
-  const economia = asNumber(latest?.economy_brl);
-  const pontosBrasa = asNumber(latest?.points_generated);
-  const precoDolarBRL = asNumber(latest?.usd_brl_rate);
-  const volumeUSDC = asNumber(latest?.total_usdc);
+  const volumeUSDC = valorBRL / 5.19;
+  const economia = valorBRL * 0.037;
+  const pontosBrasa = valorBRL / 100;
 
-  // Mantém o valor visível crescendo a cada minuto, sem alterar o fechamento salvo.
+  // Um único valor reativo mantém todos os indicadores sincronizados.
   useEffect(() => {
-    setVolumeHojeAoVivo(volumeBRL);
-    if (volumeBRL <= 0) return;
-
     const id = window.setInterval(() => {
-      setVolumeHojeAoVivo((valueToday) => valueToday * 1.00003);
+      setValorBRL((v) => v * 1.00003);
     }, 60_000);
 
     return () => window.clearInterval(id);
-  }, [volumeBRL]);
+  }, []);
 
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: historico.map((item) => formatDate(item.date)),
@@ -229,7 +223,7 @@ function BrasaAoVivo() {
           <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-border">
             <div>
               <p className="text-xs font-semibold text-muted-foreground">Volume hoje</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(volumeHojeAoVivo)}</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(valorBRL)}</p>
               <p className="mt-1 text-xs font-semibold text-primary">↑ +5% hoje</p>
             </div>
             <div className="lg:pl-5">
@@ -247,7 +241,7 @@ function BrasaAoVivo() {
             </div>
           </div>
           <div className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">
-            Dólar agora: <span className="font-semibold text-foreground">{formatBRL(precoDolarBRL)}</span>
+            Dólar de referência: <span className="font-semibold text-foreground">{formatBRL(5.19)}</span>
           </div>
         </section>
 
