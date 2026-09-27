@@ -34,8 +34,7 @@ Código limpo e comentado para eu aprender.
 
 This project was built with [Lovable](https://lovable.dev).
 
-**Live app**: https://brasa-dashboard-brl.lovable.app
-
+https://brasa-dashboard-brl.lovable.app/
 ## Build with Lovable
 
 Continue developing this project in the [Lovable editor](https://lovable.dev/projects/058c9f83-295b-4cb7-b5c3-ac35af5624a3).
