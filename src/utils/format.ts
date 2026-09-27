@@ -11,3 +11,9 @@ export const formatBRLCompact = (v: number) =>
 
 export const formatUSD = (v: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
+
+export const formatUSDC = (v: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(v);
