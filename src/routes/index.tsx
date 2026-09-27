@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
 import { supabase } from "@/lib/supabase";
-import { formatBRL, formatBRLCompact } from "@/utils/format";
+import { formatBRL, formatBRLCompact, formatUSDC } from "@/utils/format";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -210,7 +210,7 @@ function BrasaAoVivo() {
               {erro ? "RECONECTANDO" : "AO VIVO"}
             </span>
             <span className="text-xs text-muted-foreground">
-              Referência: {latest?.date ? formatDate(latest.date) : "--/--"}
+              Referência: hoje, {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date())}
             </span>
           </div>
         </header>
@@ -224,7 +224,7 @@ function BrasaAoVivo() {
             </div>
             <div className="lg:pl-5">
               <p className="text-xs font-semibold text-muted-foreground">Volume na Solana</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums">{num(volumeUSDC)} <span className="text-sm text-muted-foreground">USDC</span></p>
+              <p className="mt-2 text-2xl font-bold tabular-nums">{formatUSDC(volumeUSDC)} <span className="text-sm text-muted-foreground">USDC</span></p>
             </div>
             <div className="lg:pl-5">
               <p className="text-xs font-semibold text-muted-foreground">Economia vs bancos</p>
