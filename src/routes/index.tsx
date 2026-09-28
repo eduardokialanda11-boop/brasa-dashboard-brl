@@ -15,7 +15,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
 import { supabase } from "@/lib/supabase";
-import { formatBRL, formatBRLCompact, formatUSDC } from "@/utils/format";
+import { formatBRL, formatBRLCompact } from "@/utils/format";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
