@@ -28,6 +28,13 @@ type DailyVolume = {
   total_usdc: number | string | null;
 };
 
+type HistoricoPonto = {
+  pontos: number | string | null;
+  posicao: number | string | null;
+  valor_brl: number | string | null;
+  created_at: string;
+};
+
 const num = (v: number) => new Intl.NumberFormat("pt-BR").format(v);
 const numCompact = (v: number) =>
   new Intl.NumberFormat("pt-BR", {
@@ -39,34 +46,6 @@ const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(
     new Date(`${value}T12:00:00`),
   );
-
-// Cria no máximo um registro simulado por dia, a partir do último fechamento.
-async function ensureTodayDemoVolume() {
-  const today = new Date().toISOString().split("T")[0];
-  const { data: lastVolume, error: lastVolumeError } = await supabase
-    .from("daily_volumes")
-    .select("*")
-    .order("date", { ascending: false })
-    .limit(1)
-    .maybeSingle<DailyVolume>();
-
-  if (lastVolumeError) throw lastVolumeError;
-  if (!lastVolume || lastVolume.date === today) return;
-
-  const totalBRL = asNumber(lastVolume.total_brl) * 1.05;
-  const totalUSDC = asNumber(lastVolume.total_usdc) * 1.05;
-  const { error: insertError } = await supabase.from("daily_volumes").insert({
-    date: today,
-    total_brl: totalBRL,
-    total_usdc: totalUSDC,
-    economy_brl: totalBRL * 0.037,
-    points_generated: 34_000,
-    usd_brl_rate: asNumber(lastVolume.usd_brl_rate),
-  });
-
-  // Uma restrição única de data pode resolver acessos simultâneos com segurança.
-  if (insertError && insertError.code !== "23505") throw insertError;
-}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -83,58 +62,45 @@ export const Route = createFileRoute("/")({
 });
 
 function BrasaAoVivo() {
-  const [valorBRL, setValorBRL] = useState(3_417_092.3);
+  const [resumo, setResumo] = useState<HistoricoPonto | null>(null);
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
   const [carregando, setCarregando] = useState(true);
 
-  async function fetchDailyVolumes(createToday = false) {
-    if (createToday) {
-      try {
-        await ensureTodayDemoVolume();
-      } catch {
-        // O efeito ao vivo continua usando o último fechamento disponível.
-      }
-    }
-
+  async function fetchDashboardData() {
     try {
-      const { data, error } = await supabase
-        .from("daily_volumes")
-        .select("*")
-        .order("date", { ascending: false })
-        .limit(7)
-        .returns<DailyVolume[]>();
+      const [resumoResult, volumesResult] = await Promise.all([
+        supabase
+          .from("historico_ponto")
+          .select("*")
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .returns<HistoricoPonto[]>(),
+        supabase
+          .from("daily_volumes")
+          .select("*")
+          .order("date", { ascending: false })
+          .limit(7)
+          .returns<DailyVolume[]>(),
+      ]);
 
-      console.log("Dados buscados:", data);
+      console.log("Dados buscados:", volumesResult.data);
 
-      if (error) throw error;
+      if (resumoResult.error) throw resumoResult.error;
+      if (volumesResult.error) throw volumesResult.error;
 
-      const rows = data ?? [];
-      const valorMaisRecente = asNumber(rows[0]?.total_brl);
-      if (valorMaisRecente > 0) setValorBRL(valorMaisRecente);
-      setHistorico([...rows].reverse());
-      setCarregando(rows.length === 0);
+      setResumo(resumoResult.data?.[0] ?? null);
+      setHistorico([...(volumesResult.data ?? [])].reverse());
     } catch {
+      setResumo(null);
       setHistorico([]);
-      setCarregando(true);
+    } finally {
+      setCarregando(false);
     }
   }
 
-  // Busca o fechamento diário ao abrir o painel.
+  // O navegador apenas lê os registros mantidos pelo banco.
   useEffect(() => {
-    void fetchDailyVolumes(true);
-  }, []);
-
-  const volumeUSDC = valorBRL / 5.19;
-  const economia = valorBRL * 0.037;
-  const pontosBrasa = valorBRL / 100;
-
-  // Um único valor reativo mantém todos os indicadores sincronizados.
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setValorBRL((v) => v * 1.00003);
-    }, 60_000);
-
-    return () => window.clearInterval(id);
+    void fetchDashboardData();
   }, []);
 
   const chartData = useMemo<ChartData<"line">>(() => ({
@@ -205,13 +171,7 @@ function BrasaAoVivo() {
             </div>
           </div>
           <div className="flex flex-col items-start gap-1 sm:items-end">
-            <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-              <span className="flex items-center gap-2 rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">
-                <span className="size-2 animate-pulse rounded-full bg-primary" aria-hidden="true" />
-                AO VIVO
-              </span>
-              <span className="text-xs text-muted-foreground">atualiza a cada 60s</span>
-            </div>
+            <span className="rounded-full bg-primary/15 px-3 py-1 text-xs font-bold text-primary">DADOS REAIS</span>
             <span className="text-xs text-muted-foreground">
               Referência: hoje, {new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date())}
             </span>
@@ -220,29 +180,26 @@ function BrasaAoVivo() {
 
         <section className={`${card} mb-4`}>
           <p className={label}>Resumo de hoje</p>
-          <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:divide-x lg:divide-border">
+          {carregando ? (
+            <p className="mt-5 text-sm text-muted-foreground">Carregando...</p>
+          ) : resumo ? (
+          <div className="mt-5 grid gap-5 sm:grid-cols-3 lg:divide-x lg:divide-border">
             <div>
               <p className="text-xs font-semibold text-muted-foreground">Volume hoje</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(valorBRL)}</p>
-              <p className="mt-1 text-xs font-semibold text-primary">↑ +5% hoje</p>
-            </div>
-            <div className="lg:pl-5">
-              <p className="text-xs font-semibold text-muted-foreground">Volume na Solana</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums">{formatUSDC(volumeUSDC)} <span className="text-sm text-muted-foreground">USDC</span></p>
-            </div>
-            <div className="lg:pl-5">
-              <p className="text-xs font-semibold text-muted-foreground">Economia vs bancos</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(economia)}</p>
-              <p className="mt-1 text-xs text-muted-foreground">3,7%</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(asNumber(resumo.valor_brl))}</p>
             </div>
             <div className="lg:pl-5">
               <p className="text-xs font-semibold text-muted-foreground">Pontos Brasa</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">{numCompact(pontosBrasa)} <span className="text-sm text-muted-foreground">pontos</span></p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">{numCompact(asNumber(resumo.pontos))} <span className="text-sm text-muted-foreground">pontos</span></p>
+            </div>
+            <div className="lg:pl-5">
+              <p className="text-xs font-semibold text-muted-foreground">Posição</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums text-primary">#{num(asNumber(resumo.posicao))}</p>
             </div>
           </div>
-          <div className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">
-            Dólar de referência: <span className="font-semibold text-foreground">{formatBRL(5.19)}</span>
-          </div>
+          ) : (
+            <p className="mt-5 text-sm text-muted-foreground">Base pronta — aguardando dados em historico_ponto.</p>
+          )}
         </section>
 
         <section className={`${card} relative overflow-hidden`}>
@@ -253,13 +210,13 @@ function BrasaAoVivo() {
             ) : historico.length ? (
               <Line data={chartData} options={chartOptions} />
             ) : (
-              <p className="pt-20 text-center text-sm text-muted-foreground">Carregando...</p>
+              <p className="pt-20 text-center text-sm text-muted-foreground">Base pronta — aguardando dados em daily_volumes.</p>
             )}
           </div>
         </section>
 
         <footer className="pt-5 text-center text-xs text-muted-foreground">
-          Dados V1 simulados com crescimento de 5% ao dia. V2: indexação on-chain de carteiras de rampas BR via Helius API com tx verificáveis no Solscan.
+          Fonte: historico_ponto e daily_volumes. O volume diário é processado automaticamente pelo banco de dados.
         </footer>
       </div>
     </main>

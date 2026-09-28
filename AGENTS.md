@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 - Keep all dashboard currency presentation in `src/utils/format.ts` so cards and charts use identical locale-safe formatting.
-- Use `daily_volumes` through the browser Supabase client as the dashboard's only data source; it keeps displayed totals aligned with ETL output.
-- Create the hackathon's daily 5% demo row from the browser only on initial page load; this keeps the prototype automatic without adding a scheduler.
-- Derive all live summary cards from one BRL presentation state, increasing it by 0.003% per minute; `daily_volumes` remains the persisted source of truth.
+- Read the dashboard summary from the latest `historico_ponto` row and the seven-day chart from `daily_volumes`; this keeps each view tied to persisted data.
+- Never write to `daily_volumes` from the frontend; `public.criar_dia_certo()` via `pg_cron` exclusively creates daily volume rows.
+- Do not simulate dashboard values in browser state or timers; refresh displayed values only from database reads.
+- Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
