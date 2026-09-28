@@ -73,7 +73,7 @@ function BrasaAoVivo() {
       supabase
         .from("historico_ponto")
         .select("*")
-        .order("created_at", { ascending: false })
+        .order("criado_em", { ascending: false })
         .limit(1)
         .returns<HistoricoPonto[]>(),
       supabase
@@ -84,18 +84,7 @@ function BrasaAoVivo() {
         .returns<DailyVolume[]>(),
     ]);
 
-    let latestSummary = resumoResult.data?.[0] ?? null;
-    if (resumoResult.error?.code === "42703") {
-      const fallbackResult = await supabase
-        .from("historico_ponto")
-        .select("*")
-        .order("criado_em", { ascending: false })
-        .limit(1)
-        .returns<HistoricoPonto[]>();
-      latestSummary = fallbackResult.error ? null : (fallbackResult.data?.[0] ?? null);
-    }
-
-    setResumo(latestSummary);
+    setResumo(resumoResult.error ? null : (resumoResult.data?.[0] ?? null));
     console.log("Dados buscados:", volumesResult.data);
     if (volumesResult.error) {
       setResumo(null);
