@@ -31,8 +31,10 @@ type DailyVolume = {
 type HistoricoPonto = {
   pontos: number | string | null;
   posicao: number | string | null;
-  valor_brl: number | string | null;
-  created_at: string;
+  valor_brl?: number | string | null;
+  volume_brl?: number | string | null;
+  created_at?: string;
+  criado_em?: string;
 };
 
 const num = (v: number) => new Intl.NumberFormat("pt-BR").format(v);
@@ -67,35 +69,41 @@ function BrasaAoVivo() {
   const [carregando, setCarregando] = useState(true);
 
   async function fetchDashboardData() {
-    try {
-      const [resumoResult, volumesResult] = await Promise.all([
-        supabase
-          .from("historico_ponto")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(1)
-          .returns<HistoricoPonto[]>(),
-        supabase
-          .from("daily_volumes")
-          .select("*")
-          .order("date", { ascending: false })
-          .limit(7)
-          .returns<DailyVolume[]>(),
-      ]);
+    const [resumoResult, volumesResult] = await Promise.all([
+      supabase
+        .from("historico_ponto")
+        .select("*")
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .returns<HistoricoPonto[]>(),
+      supabase
+        .from("daily_volumes")
+        .select("*")
+        .order("date", { ascending: false })
+        .limit(7)
+        .returns<DailyVolume[]>(),
+    ]);
 
-      console.log("Dados buscados:", volumesResult.data);
+    let latestSummary = resumoResult.data?.[0] ?? null;
+    if (resumoResult.error?.code === "42703") {
+      const fallbackResult = await supabase
+        .from("historico_ponto")
+        .select("*")
+        .order("criado_em", { ascending: false })
+        .limit(1)
+        .returns<HistoricoPonto[]>();
+      latestSummary = fallbackResult.error ? null : (fallbackResult.data?.[0] ?? null);
+    }
 
-      if (resumoResult.error) throw resumoResult.error;
-      if (volumesResult.error) throw volumesResult.error;
-
-      setResumo(resumoResult.data?.[0] ?? null);
-      setHistorico([...(volumesResult.data ?? [])].reverse());
-    } catch {
+    setResumo(latestSummary);
+    console.log("Dados buscados:", volumesResult.data);
+    if (volumesResult.error) {
       setResumo(null);
       setHistorico([]);
-    } finally {
-      setCarregando(false);
+    } else {
+      setHistorico([...(volumesResult.data ?? [])].reverse());
     }
+    setCarregando(false);
   }
 
   // O navegador apenas lê os registros mantidos pelo banco.
@@ -186,7 +194,7 @@ function BrasaAoVivo() {
           <div className="mt-5 grid gap-5 sm:grid-cols-3 lg:divide-x lg:divide-border">
             <div>
               <p className="text-xs font-semibold text-muted-foreground">Volume hoje</p>
-              <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(asNumber(resumo.valor_brl))}</p>
+              <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(asNumber(resumo.valor_brl ?? resumo.volume_brl))}</p>
             </div>
             <div className="lg:pl-5">
               <p className="text-xs font-semibold text-muted-foreground">Pontos Brasa</p>
