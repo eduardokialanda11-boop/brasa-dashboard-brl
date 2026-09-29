@@ -4,3 +4,6 @@
 - [x] Estado vazio para a base aguardando o primeiro ETL
 - [x] Removidas todas as escritas do frontend em `daily_volumes`; criação diária exclusiva do `pg_cron`
 - [x] Removidos valores fixos e incrementos simulados do resumo
+- [x] Resumo V2 LIVE alimentado pelo índice on-chain de 12 carteiras
+- [x] Crescimento de 7 dias calculado com `daily_volumes`, sem estimativa
+- [x] Estado de sincronização sem valores simulados
