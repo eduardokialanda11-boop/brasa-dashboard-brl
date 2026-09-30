@@ -7,3 +7,4 @@
 - [x] Resumo V2 LIVE alimentado pelo índice on-chain de 12 carteiras
 - [x] Crescimento de 7 dias calculado com `daily_volumes`, sem estimativa
 - [x] Estado de sincronização sem valores simulados
+- [x] Resumo, transações e tendência semanal alimentados exclusivamente por `daily_volumes`

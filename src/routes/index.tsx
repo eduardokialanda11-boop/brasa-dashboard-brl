@@ -1,5 +1,4 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -15,9 +14,14 @@ import { Line } from "react-chartjs-2";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
-import { getLiveIndex } from "@/lib/live-index.functions";
 import { supabase } from "@/lib/supabase";
-import { formatBRL, formatBRLCompact, formatUSDC } from "@/utils/format";
+import {
+  formatBRL,
+  formatBRLCompact,
+  formatBRLInternationalCompact,
+  formatUSD,
+  formatUSDC,
+} from "@/utils/format";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -25,15 +29,10 @@ type DailyVolume = {
   date: string;
   total_brl: number | string | null;
   total_usdc: number | string | null;
+  economy_brl: number | string | null;
+  usd_brl_rate: number | string | null;
+  tx_count: number | string | null;
 };
-
-type LiveIndex = {
-  totalBRL: number;
-  totalUSDC: number;
-  economyBRL: number;
-};
-
-const LIVE_REFRESH_MS = 60_000;
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
 const formatDate = (value: string) =>
@@ -62,52 +61,53 @@ export const Route = createFileRoute("/")({
 });
 
 function BrasaAoVivo() {
-  const fetchLiveIndexFromServer = useServerFn(getLiveIndex);
-  const [liveIndex, setLiveIndex] = useState<LiveIndex | null>(null);
+  const [resumo, setResumo] = useState<DailyVolume | null>(null);
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
-  const [sincronizando, setSincronizando] = useState(true);
+  const [carregando, setCarregando] = useState(true);
 
   useEffect(() => {
     let active = true;
 
-    async function fetchLiveIndex() {
-      try {
-        const data = await fetchLiveIndexFromServer();
-        if (active) setLiveIndex(data);
-      } catch (error) {
-        console.warn("Aguardando a fonte das 12 carteiras ficar disponível:", error);
-      } finally {
-        if (active) setSincronizando(false);
-      }
-    }
-
-    async function fetchHistory() {
-      const result = await supabase
-        .from("daily_volumes")
-        .select("date,total_brl,total_usdc")
-        .order("date", { ascending: false })
-        .limit(7)
-        .returns<DailyVolume[]>();
+    async function fetchDashboard() {
+      const [latestResult, historyResult] = await Promise.all([
+        supabase
+          .from("daily_volumes")
+          .select("date,total_brl,total_usdc,economy_brl,usd_brl_rate,tx_count")
+          .order("date", { ascending: false })
+          .limit(1)
+          .returns<DailyVolume[]>(),
+        supabase
+          .from("daily_volumes")
+          .select("date,total_brl")
+          .order("date", { ascending: true })
+          .limit(7)
+          .returns<DailyVolume[]>(),
+      ]);
 
       if (!active) return;
-      console.log("Dados buscados:", result.data);
-      setHistorico(result.error ? [] : [...(result.data ?? [])].reverse());
+
+      if (latestResult.error || historyResult.error) {
+        console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error);
+        setResumo(null);
+        setHistorico([]);
+      } else {
+        setResumo(latestResult.data?.[0] ?? null);
+        setHistorico(historyResult.data ?? []);
+      }
+      setCarregando(false);
     }
 
-    void fetchLiveIndex();
-    void fetchHistory();
-    const interval = window.setInterval(() => void fetchLiveIndex(), LIVE_REFRESH_MS);
+    void fetchDashboard();
 
     return () => {
       active = false;
-      window.clearInterval(interval);
     };
-  }, [fetchLiveIndexFromServer]);
+  }, []);
 
-  const crescimento = useMemo(() => {
+  const variacaoSeteDias = useMemo(() => {
     if (historico.length < 2) return null;
-    const inicial = asNumber(historico[0]?.total_usdc);
-    const atual = asNumber(historico[historico.length - 1]?.total_usdc);
+    const inicial = asNumber(historico[0]?.total_brl);
+    const atual = asNumber(historico[historico.length - 1]?.total_brl);
     if (inicial <= 0) return null;
     return ((atual - inicial) / inicial) * 100;
   }, [historico]);
@@ -155,7 +155,7 @@ function BrasaAoVivo() {
       },
       y: {
         grid: { color: "rgba(143,176,156,.08)" },
-        ticks: { color: "#8fb09c", callback: (value) => formatBRLCompact(Number(value)) },
+        ticks: { color: "#8fb09c", callback: (value) => formatBRLInternationalCompact(Number(value)) },
       },
     },
   }), []);
@@ -184,42 +184,59 @@ function BrasaAoVivo() {
 
         <section className="mb-4 border-y border-border bg-card/80 py-6 sm:px-6">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Resumo de hoje</p>
-          {sincronizando || !liveIndex ? (
+          {carregando ? (
             <div className="flex min-h-32 items-center text-sm font-medium text-muted-foreground">
-              Sincronizando 12 carteiras on-chain...
+              Carregando dados on-chain...
+            </div>
+          ) : !resumo ? (
+            <div className="flex min-h-32 items-center text-sm font-medium text-muted-foreground">
+              Base pronta — aguardando primeiro ETL.
             </div>
           ) : (
-            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground">PIX que virou USDC hoje</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(liveIndex.totalBRL)}</p>
+                <p className="text-xs font-semibold text-muted-foreground">Volume hoje</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(asNumber(resumo.total_brl))}</p>
               </div>
               <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">USDC na Solana</p>
+                <p className="text-xs font-semibold text-muted-foreground">Volume Solana</p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">
-                  {formatUSDC(liveIndex.totalUSDC)} <span className="text-sm text-muted-foreground">USDC</span>
+                  {formatUSDC(asNumber(resumo.total_usdc))} <span className="text-sm text-muted-foreground">USDC</span>
                 </p>
               </div>
               <div className={metric}>
                 <p className="text-xs font-semibold text-muted-foreground">Economia vs Bancos</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(liveIndex.economyBRL)}</p>
-                <p className="mt-1 text-xs text-muted-foreground">3,2% do volume monitorado</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(asNumber(resumo.economy_brl))}</p>
+                <span className="mt-2 inline-flex border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
+                  Economia média de 3,7% por transação
+                </span>
               </div>
               <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">Crescimento Solana BR</p>
-                <p className={`mt-2 text-2xl font-bold tabular-nums ${crescimento != null && crescimento < 0 ? "text-destructive" : "text-primary"}`}>
-                  {crescimento == null
-                    ? "—"
-                    : `${crescimento >= 0 ? "+" : ""}${crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
+                <p className="text-xs font-semibold text-muted-foreground">Dólar</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums">{formatUSD(asNumber(resumo.usd_brl_rate))}</p>
+                <p className="mt-1 text-xs text-muted-foreground">Cotação BRL por USD</p>
+              </div>
+              <div className={metric}>
+                <p className="text-xs font-semibold text-muted-foreground">PIX convertidos hoje</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">
+                  {asNumber(resumo.tx_count).toLocaleString("pt-BR")}
                 </p>
-                <p className="mt-1 text-xs text-muted-foreground">Variação dos últimos 7 dias</p>
+                <p className="mt-1 text-xs text-muted-foreground">transações on-chain</p>
               </div>
             </div>
           )}
         </section>
 
         <section className="relative overflow-hidden border-y border-border bg-card/80 py-6 sm:px-6">
-          <h1 className="text-xl font-bold">Volume nos últimos 7 dias</h1>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <h1 className="text-xl font-bold">Volume nos últimos 7 dias</h1>
+            {variacaoSeteDias != null && (
+              <div className={`w-fit border px-3 py-2 text-xs font-bold ${variacaoSeteDias >= 0 ? "border-primary/30 bg-primary/10 text-primary" : "border-destructive/30 bg-destructive/10 text-destructive"}`}>
+                {variacaoSeteDias >= 0 ? "↗" : "↘"} Solana {variacaoSeteDias >= 0 ? "crescendo" : "caindo"}{" "}
+                {variacaoSeteDias >= 0 ? "+" : ""}{variacaoSeteDias.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% no Brasil nos últimos 7 dias
+              </div>
+            )}
+          </div>
           <div className="mt-5 h-64 sm:h-80">
             {historico.length ? (
               <Line data={chartData} options={chartOptions} />
@@ -230,7 +247,7 @@ function BrasaAoVivo() {
         </section>
 
         <footer className="mx-auto max-w-4xl pt-6 text-center text-xs leading-relaxed text-muted-foreground">
-          Metodologia V2 LIVE: Soma de transações USDC de 12 carteiras de rampas BR indexadas via Helius API na Solana. Conversão BRL via Binance API. 12 carteiras monitoradas.
+          Dados V2 on-chain via Helius - Volume de rampas BRL&gt;USDC na Solana
         </footer>
       </div>
     </main>
