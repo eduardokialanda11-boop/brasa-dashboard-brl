@@ -29,7 +29,7 @@ type DailyVolume = {
   date: string;
   total_brl: number | string | null;
   total_usdc: number | string | null;
-  economia_vs_banco: number | string | null;
+  economy_brl: number | string | null;
   usd_brl_rate: number | string | null;
   tx_count: number | string | null;
 };
@@ -72,7 +72,7 @@ function BrasaAoVivo() {
       const [latestResult, historyResult] = await Promise.all([
         supabase
           .from("daily_volumes")
-          .select("date,total_brl,total_usdc,economia_vs_banco,usd_brl_rate,tx_count")
+          .select("date,total_brl,total_usdc,economy_brl,usd_brl_rate,tx_count")
           .order("date", { ascending: false })
           .limit(1)
           .returns<DailyVolume[]>(),
@@ -206,7 +206,7 @@ function BrasaAoVivo() {
               </div>
               <div className={metric}>
                 <p className="text-xs font-semibold text-muted-foreground">Economia vs Bancos</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(asNumber(resumo.economia_vs_banco))}</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(asNumber(resumo.economy_brl))}</p>
                 <span className="mt-2 inline-flex border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
                   Economia média de 3,7% por transação
                 </span>
