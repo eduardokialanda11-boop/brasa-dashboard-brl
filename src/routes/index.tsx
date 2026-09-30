@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -14,6 +15,7 @@ import { Line } from "react-chartjs-2";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
+import { getLiveIndex } from "@/lib/live-index.functions";
 import { supabase } from "@/lib/supabase";
 import { formatBRL, formatBRLCompact, formatUSDC } from "@/utils/format";
 
@@ -25,22 +27,12 @@ type DailyVolume = {
   total_usdc: number | string | null;
 };
 
-type LiveIndexResponse = {
-  total_brl?: number | string | null;
-  total_usdc?: number | string | null;
-  volume_hoje_brl?: number | string | null;
-  volume_hoje_usdc?: number | string | null;
-  economia_brl?: number | string | null;
-};
-
 type LiveIndex = {
   totalBRL: number;
   totalUSDC: number;
   economyBRL: number;
 };
 
-const LIVE_INDEX_URL = `${import.meta.env["VITE_SUPABASE_URL"]}/functions/v1/hyper-action`;
-const LIVE_INDEX_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5weHl0bHhqbm9xcHlvdWtwcHBpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTAxMzU3NzQsImV4cCI6MjEwNTcxMTc3NH0.jqJ7FQHhNxAbQYRRMnE7zuHpq-dkUhr0nsMcKGPCTDI";
 const LIVE_REFRESH_MS = 60_000;
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
@@ -70,6 +62,7 @@ export const Route = createFileRoute("/")({
 });
 
 function BrasaAoVivo() {
+  const fetchLiveIndexFromServer = useServerFn(getLiveIndex);
   const [liveIndex, setLiveIndex] = useState<LiveIndex | null>(null);
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
   const [sincronizando, setSincronizando] = useState(true);
@@ -79,25 +72,8 @@ function BrasaAoVivo() {
 
     async function fetchLiveIndex() {
       try {
-        const response = await fetch(LIVE_INDEX_URL, {
-          headers: {
-            apikey: LIVE_INDEX_KEY,
-            Authorization: `Bearer ${LIVE_INDEX_KEY}`,
-          },
-        });
-        if (!response.ok) throw new Error(`Falha na sincronização (${response.status})`);
-
-        const data = (await response.json()) as LiveIndexResponse;
-        const totalBRL = asNumber(data.total_brl ?? data.volume_hoje_brl);
-        const totalUSDC = asNumber(data.total_usdc ?? data.volume_hoje_usdc);
-
-        if (active) {
-          setLiveIndex({
-            totalBRL,
-            totalUSDC,
-            economyBRL: totalBRL * 0.032,
-          });
-        }
+        const data = await fetchLiveIndexFromServer();
+        if (active) setLiveIndex(data);
       } catch (error) {
         console.error("Não foi possível sincronizar as 12 carteiras:", error);
       } finally {
@@ -126,7 +102,7 @@ function BrasaAoVivo() {
       active = false;
       window.clearInterval(interval);
     };
-  }, []);
+  }, [fetchLiveIndexFromServer]);
 
   const crescimento = useMemo(() => {
     if (historico.length < 2) return null;
