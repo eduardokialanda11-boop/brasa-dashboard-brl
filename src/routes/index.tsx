@@ -75,7 +75,7 @@ function BrasaAoVivo() {
         const data = await fetchLiveIndexFromServer();
         if (active) setLiveIndex(data);
       } catch (error) {
-        console.error("Não foi possível sincronizar as 12 carteiras:", error);
+        console.warn("Aguardando a fonte das 12 carteiras ficar disponível:", error);
       } finally {
         if (active) setSincronizando(false);
       }
