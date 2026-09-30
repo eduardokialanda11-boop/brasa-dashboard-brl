@@ -10,8 +10,7 @@
 <!-- LOVABLE:END -->
 
 - Keep all dashboard currency presentation in `src/utils/format.ts` so cards and charts use identical locale-safe formatting.
-- Read the live summary from `hyper-action` (12 monitored wallets) and the seven-day chart from `daily_volumes`; this keeps live and historical views tied to real sources.
+- Read both the latest summary and seven-day chart exclusively from `daily_volumes`; this keeps every visible metric tied to the same real source.
 - Never write to `daily_volumes` from the frontend; `public.criar_dia_certo()` via `pg_cron` exclusively creates daily volume rows.
 - Do not simulate dashboard values in browser state or timers; refresh displayed values only from database reads.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
-- Proxy the `hyper-action` read through a TanStack server function because its CORS policy rejects the required browser authorization header.

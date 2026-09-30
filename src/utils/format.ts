@@ -9,6 +9,15 @@ export const formatBRLCompact = (v: number) =>
     maximumFractionDigits: 2,
   }).format(v);
 
+export const formatBRLInternationalCompact = (v: number) =>
+  new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "BRL",
+    currencyDisplay: "narrowSymbol",
+    notation: "compact",
+    maximumFractionDigits: 1,
+  }).format(v);
+
 export const formatUSD = (v: number) =>
   new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }).format(v);
 
