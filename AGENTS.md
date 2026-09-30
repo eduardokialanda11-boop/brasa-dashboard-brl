@@ -14,3 +14,4 @@
 - Never write to `daily_volumes` from the frontend; `public.criar_dia_certo()` via `pg_cron` exclusively creates daily volume rows.
 - Do not simulate dashboard values in browser state or timers; refresh displayed values only from database reads.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
+- Proxy the `hyper-action` read through a TanStack server function because its CORS policy rejects the required browser authorization header.
