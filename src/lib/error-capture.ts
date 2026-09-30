@@ -15,6 +15,23 @@ function record(error: unknown) {
 const CAUSE_DEPTH_LIMIT = 5;
 const DESCRIPTION_LENGTH_LIMIT = 8_000;
 
+export function isRequestAbort(error: unknown): boolean {
+  let current: unknown = error;
+  for (let depth = 0; depth < CAUSE_DEPTH_LIMIT && current != null; depth++) {
+    if (!(current instanceof Error)) return false;
+    const code = (current as Error & { code?: unknown }).code;
+    if (
+      current.name === "AbortError" ||
+      current.message.toLowerCase() === "aborted" ||
+      code === "ECONNRESET"
+    ) {
+      return true;
+    }
+    current = current.cause;
+  }
+  return false;
+}
+
 export function describeError(error: unknown): string {
   const parts: string[] = [];
   let current: unknown = error;
@@ -59,6 +76,9 @@ console.error = (...args: unknown[]) => {
     record(arg);
     return describeError(arg);
   });
+  // Browsers routinely close superseded navigation/HMR requests. Node reports
+  // that transport event as an Error, but it is not an application failure.
+  if (args.some(isRequestAbort)) return;
   originalConsoleError(...expanded);
 };
 

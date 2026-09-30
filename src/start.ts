@@ -1,11 +1,15 @@
 import { createStart, createCsrfMiddleware, createMiddleware } from "@tanstack/react-start";
 
+import { isRequestAbort } from "./lib/error-capture";
 import { renderErrorPage } from "./lib/error-page";
 
 const errorMiddleware = createMiddleware().server(async ({ next }) => {
   try {
     return await next();
   } catch (error) {
+    if (isRequestAbort(error)) {
+      return new Response(null, { status: 499 });
+    }
     if (error != null && typeof error === "object" && "statusCode" in error) {
       throw error;
     }
