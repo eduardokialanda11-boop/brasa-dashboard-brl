@@ -52,18 +52,17 @@ export function OnchainProofsDialog({ open, onOpenChange, rows, loading, error }
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[88vh] w-[calc(100%-2rem)] max-w-4xl overflow-hidden border-border bg-card p-0 text-card-foreground sm:rounded-xl">
         <DialogHeader className="border-b border-border p-5 pr-12 md:p-6 md:pr-14">
-          <DialogTitle className="flex items-center gap-2 text-left text-xl">
+          <DialogTitle className="flex items-start gap-2 text-left text-xl">
             <ShieldCheck className="size-5 text-primary" aria-hidden="true" />
-            Provas On-Chain
+            <span>
+              Provas On-Chain{rows.length ? ` - Total verificado hoje: ${formatBRL(totalBrl)} em ${rows.length} txs únicas` : ""}
+            </span>
           </DialogTitle>
           <DialogDescription className="text-left leading-relaxed">
             {rows.length
-              ? `Total verificado hoje: ${formatBRL(totalBrl)} em ${rows.length} txs únicas`
+              ? `${signatures.size} hashes únicos e verificáveis no Solscan.`
               : "As assinaturas verificáveis aparecerão aqui após a primeira coleta."}
           </DialogDescription>
-          {rows.length > 0 && (
-            <p className="text-left text-xs font-medium text-primary">Sem duplicidade: {signatures.size} hashes únicos</p>
-          )}
         </DialogHeader>
 
         <div className="max-h-[62vh] overflow-auto p-5 md:p-6">
@@ -86,7 +85,7 @@ export function OnchainProofsDialog({ open, onOpenChange, rows, loading, error }
                   <th className="pb-3 font-medium">BRL</th>
                   <th className="pb-3 font-medium">Horário</th>
                   <th className="pb-3 font-medium">Carteira</th>
-                  <th className="pb-3 text-right font-medium">Solscan</th>
+                  <th className="pb-3 text-right font-medium">Hash</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
@@ -102,8 +101,8 @@ export function OnchainProofsDialog({ open, onOpenChange, rows, loading, error }
                       <td className="py-3 font-mono text-xs text-muted-foreground">{shorten(wallet)}</td>
                       <td className="py-3 text-right">
                         {signature ? (
-                          <a className="inline-flex items-center gap-1 font-semibold text-primary hover:underline" href={`https://solscan.io/tx/${encodeURIComponent(signature)}`} target="_blank" rel="noreferrer">
-                            Ver <ExternalLink className="size-3.5" aria-hidden="true" />
+                          <a className="inline-flex items-center gap-1 font-mono text-xs font-semibold text-primary hover:underline" href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noreferrer">
+                            {signature.slice(0, 8)}... Ver <ExternalLink className="size-3.5" aria-hidden="true" />
                           </a>
                         ) : <span className="text-muted-foreground">Sem hash</span>}
                       </td>
