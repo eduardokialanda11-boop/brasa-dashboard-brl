@@ -214,7 +214,7 @@ function BrasaAoVivo() {
                 <p className="text-xs font-semibold text-muted-foreground">Economia vs Banco</p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(economiaTotal)}</p>
                 <span className="mt-2 inline-flex border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-                  {percentualEconomizado.toFixed(1)}% economizado vs bancos
+                  ({percentualEconomizado.toFixed(1)}% vs bancos)
                 </span>
               </div>
             </div>
