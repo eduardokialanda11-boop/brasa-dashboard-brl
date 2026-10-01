@@ -10,3 +10,4 @@
 - [x] Resumo, transações e tendência semanal alimentados exclusivamente por `daily_volumes`
 - [x] Resumo alimentado pelo registro mais recente de `daily_volumes`, com zeros quando a tabela está vazia
 - [x] Atualização automática a cada 60 segundos exclusivamente por nova leitura de `daily_volumes`
+- [x] Visual compacto restaurado com resumo único e gráfico usando somente dias reais disponíveis
