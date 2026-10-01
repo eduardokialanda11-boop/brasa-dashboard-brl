@@ -34,13 +34,6 @@ type DailyVolume = {
 };
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
-const getLocalDate = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(
     new Date(`${value}T12:00:00`),
@@ -75,13 +68,13 @@ function BrasaAoVivo() {
     let active = true;
 
     async function fetchDashboard() {
-      const [todayResult, historyResult] = await Promise.all([
+      const [latestResult, historyResult] = await Promise.all([
         supabase
           .from("daily_volumes")
           .select("*")
-          .eq("date", getLocalDate())
+          .order("date", { ascending: false })
           .limit(1)
-          .returns<DailyVolume[]>(),
+          .maybeSingle<DailyVolume>(),
         supabase
           .from("daily_volumes")
           .select("*")
@@ -92,12 +85,12 @@ function BrasaAoVivo() {
 
       if (!active) return;
 
-      if (todayResult.error || historyResult.error) {
-        console.warn("Não foi possível carregar daily_volumes:", todayResult.error ?? historyResult.error);
+      if (latestResult.error || historyResult.error) {
+        console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error);
         setResumo(null);
         setHistorico([]);
       } else {
-        setResumo(todayResult.data?.[0] ?? null);
+        setResumo(latestResult.data ?? null);
         setHistorico([...(historyResult.data ?? [])].reverse());
       }
       setCarregando(false);
@@ -119,7 +112,7 @@ function BrasaAoVivo() {
   }, [historico]);
 
   const volumeTotal = asNumber(resumo?.total_brl);
-  const economiaTotal = asNumber(resumo?.economia_vs_banco ?? resumo?.economy_brl);
+  const economiaTotal = asNumber(resumo?.economia_vs_banco);
   const percentualEconomizado = volumeTotal > 0 ? (economiaTotal / volumeTotal) * 100 : 0;
 
   const chartData = useMemo<ChartData<"line">>(() => ({
@@ -221,7 +214,7 @@ function BrasaAoVivo() {
                 <p className="text-xs font-semibold text-muted-foreground">Economia vs Banco</p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(economiaTotal)}</p>
                 <span className="mt-2 inline-flex border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-                  {percentualEconomizado.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% economizado vs bancos
+                  {percentualEconomizado.toFixed(1)}% economizado vs bancos
                 </span>
               </div>
             </div>
