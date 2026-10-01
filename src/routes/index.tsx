@@ -16,7 +16,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
 import { supabase } from "@/lib/supabase";
-import { formatBRL, formatBRLCompact, formatUSDC } from "@/utils/format";
+import { formatBRL, formatBRLCompact, formatBRLWhole, formatUSDC } from "@/utils/format";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -31,6 +31,19 @@ type DailyVolume = {
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${value}T12:00:00`));
+const formatWeekday = (value: string) =>
+  new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" })
+    .format(new Date(`${value}T12:00:00Z`))
+    .replace(".", "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase();
+const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
+const addDays = (value: string, amount: number) => {
+  const date = new Date(`${value}T12:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + amount);
+  return toDateKey(date);
+};
 
 const referenceDate = () =>
   new Intl.DateTimeFormat("pt-BR", {
@@ -108,44 +121,91 @@ function BrasaAoVivo() {
   }, [historico, totalBrl]);
   const variacaoForaDaFaixa = variacao != null && (variacao < -50 || variacao > 200);
 
+  const semana = useMemo(() => {
+    if (!historico.length) return [];
+    const registros = new Map(historico.map((item) => [item.date, item]));
+    const inicio = historico[0]?.date;
+    if (!inicio) return [];
+    return Array.from({ length: 7 }, (_, index) => {
+      const date = addDays(inicio, index);
+      return { date, registro: registros.get(date) ?? null };
+    });
+  }, [historico]);
+
+  const insight = useMemo(() => {
+    if (!historico.length) return null;
+    const volumes = historico.map((item) => asNumber(item.total_brl));
+    const total = volumes.reduce((sum, value) => sum + value, 0);
+    const media = total / historico.length;
+    const pico = Math.max(...volumes);
+    const picoIndex = volumes.indexOf(pico);
+    const picoData = historico[picoIndex]?.date;
+    const primeiro = volumes[0] ?? 0;
+    const ultimo = volumes[volumes.length - 1] ?? 0;
+    const crescimento = historico.length === 7 && primeiro > 0 ? ((ultimo - primeiro) / primeiro) * 100 : null;
+    return { media, pico, picoData, crescimento };
+  }, [historico]);
+
   const chartData = useMemo<ChartData<"line">>(() => ({
-    labels: historico.map((item) => formatDate(item.date)),
+    labels: semana.map((item) => `${formatWeekday(item.date)} ${formatDate(item.date)}`),
     datasets: [
       {
-        label: "Volume BRL",
-        data: historico.map((item) => asNumber(item.total_brl)),
+        label: "Volume",
+        data: semana.map((item) => item.registro ? asNumber(item.registro.total_brl) : null),
         borderColor: "#22c55e",
-        backgroundColor: "rgba(34,197,94,.12)",
+        backgroundColor: "rgba(34,197,94,.10)",
         borderWidth: 3,
         pointBackgroundColor: "#22c55e",
+        pointBorderColor: "#22c55e",
         pointRadius: 4,
-        showLine: historico.length >= 3,
+        pointHoverRadius: 6,
+        spanGaps: false,
         fill: true,
-        tension: 0.4,
+        tension: 0.32,
       },
       {
-        label: "USDC em BRL",
-        data: historico.map((item) => asNumber(item.total_usdc) * asNumber(item.usd_brl_rate)),
-        borderColor: "#facc15",
+        label: "Aguardando coleta",
+        data: semana.map((item, index) => {
+          if (!item.registro) return 0;
+          const nextItem = semana[index + 1];
+          return nextItem && !nextItem.registro ? asNumber(item.registro.total_brl) : null;
+        }),
+        borderColor: "#64748b",
         backgroundColor: "transparent",
         borderWidth: 2,
-        pointBackgroundColor: "#facc15",
-        pointRadius: 3,
-        showLine: historico.length >= 3,
-        tension: 0.4,
+        borderDash: [7, 6],
+        pointBackgroundColor: "#64748b",
+        pointBorderColor: "#64748b",
+        pointRadius: (context) => semana[context.dataIndex]?.registro ? 0 : 3,
+        pointStyle: "circle",
+        spanGaps: true,
+        tension: 0,
       },
     ],
-  }), [historico]);
+  }), [semana]);
 
   const chartOptions = useMemo<ChartOptions<"line">>(() => ({
     responsive: true,
     maintainAspectRatio: false,
     interaction: { intersect: false, mode: "index" },
     plugins: {
-      legend: { labels: { color: "#8fb09c", usePointStyle: true, boxWidth: 7 } },
+      legend: { display: false },
       tooltip: {
         backgroundColor: "#142e23",
-        callbacks: { label: (context) => `${context.dataset.label}: ${formatBRLCompact(Number(context.parsed.y))}` },
+        filter: (context) => context.datasetIndex === (semana[context.dataIndex]?.registro ? 0 : 1),
+        callbacks: {
+          title: (items) => {
+            const item = items[0];
+            if (!item) return "";
+            const dia = semana[item.dataIndex];
+            return dia ? `${formatDate(dia.date)} (${formatWeekday(dia.date)})` : "";
+          },
+          label: (context) => {
+            const registro = semana[context.dataIndex]?.registro;
+            if (!registro) return "Aguardando coleta";
+            return `Volume: ${formatBRLWhole(asNumber(registro.total_brl))} (${formatUSDC(asNumber(registro.total_usdc))} USDC)`;
+          },
+        },
       },
     },
     scales: {
@@ -156,7 +216,7 @@ function BrasaAoVivo() {
         ticks: { color: "#8fb09c", callback: (value) => formatBRLCompact(Number(value)) },
       },
     },
-  }), []);
+  }), [semana]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -232,11 +292,27 @@ function BrasaAoVivo() {
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-xl md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold md:text-xl">Volume nos últimos 7 dias</h2>
-            <span className="text-xs text-muted-foreground">{historico.length} {historico.length === 1 ? "dia real" : "dias reais"}</span>
+            <span className="text-xs text-muted-foreground">{historico.length}/7 dias reais</span>
           </div>
           <div className="mt-5 h-[200px] lg:h-[320px]">
             {historico.length ? <Line data={chartData} options={chartOptions} /> : <p className="pt-24 text-center text-sm text-muted-foreground">Base pronta — aguardando primeiro ETL.</p>}
           </div>
+          {insight && (
+            <div className="mt-4 rounded-lg bg-secondary p-3 text-xs leading-relaxed md:text-sm">
+              {insight.crescimento == null ? (
+                <p className="text-foreground">
+                  <span aria-hidden="true">🌱</span> Início da coleta real — {transacoes.toLocaleString("pt-BR")} transações PIX→USDC detectadas na Solana no Brasil. Volte em 7 dias para ver tendência de crescimento.
+                </p>
+              ) : insight.crescimento >= 0 ? (
+                <p className="font-semibold text-primary"><span aria-hidden="true">📈</span> Solana no Brasil: +{insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% em 7 dias</p>
+              ) : (
+                <p className="font-semibold text-highlight"><span aria-hidden="true">📉</span> {insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% — volume em correção</p>
+              )}
+              <p className="mt-2 text-muted-foreground">
+                Média diária: {formatBRLWhole(insight.media)} <span aria-hidden="true">|</span> Pico: {formatBRLWhole(insight.pico)} em {insight.picoData ? formatDate(insight.picoData) : "—"}
+              </p>
+            </div>
+          )}
         </section>
       </div>
     </main>
