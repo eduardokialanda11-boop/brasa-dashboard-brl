@@ -75,13 +75,13 @@ function BrasaAoVivo() {
     let active = true;
 
     async function fetchDashboard() {
-      const [todayResult, historyResult] = await Promise.all([
+      const [latestResult, historyResult] = await Promise.all([
         supabase
           .from("daily_volumes")
           .select("*")
-          .eq("date", getLocalDate())
+          .order("date", { ascending: false })
           .limit(1)
-          .returns<DailyVolume[]>(),
+          .maybeSingle<DailyVolume>(),
         supabase
           .from("daily_volumes")
           .select("*")
@@ -92,12 +92,12 @@ function BrasaAoVivo() {
 
       if (!active) return;
 
-      if (todayResult.error || historyResult.error) {
-        console.warn("Não foi possível carregar daily_volumes:", todayResult.error ?? historyResult.error);
+      if (latestResult.error || historyResult.error) {
+        console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error);
         setResumo(null);
         setHistorico([]);
       } else {
-        setResumo(todayResult.data?.[0] ?? null);
+        setResumo(latestResult.data ?? null);
         setHistorico([...(historyResult.data ?? [])].reverse());
       }
       setCarregando(false);
@@ -119,7 +119,7 @@ function BrasaAoVivo() {
   }, [historico]);
 
   const volumeTotal = asNumber(resumo?.total_brl);
-  const economiaTotal = asNumber(resumo?.economia_vs_banco ?? resumo?.economy_brl);
+  const economiaTotal = asNumber(resumo?.economia_vs_banco);
   const percentualEconomizado = volumeTotal > 0 ? (economiaTotal / volumeTotal) * 100 : 0;
 
   const chartData = useMemo<ChartData<"line">>(() => ({
