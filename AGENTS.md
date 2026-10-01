@@ -12,5 +12,5 @@
 - Keep all dashboard currency presentation in `src/utils/format.ts` so cards and charts use identical locale-safe formatting.
 - Read the latest summary row and the latest seven chronological chart rows exclusively from `daily_volumes`; this keeps every visible metric tied to the same real source.
 - Never write to `daily_volumes` from the frontend; `public.criar_dia_certo()` via `pg_cron` exclusively creates daily volume rows.
-- Do not simulate dashboard values in browser state or timers; refresh displayed values only from database reads.
+- Refresh the dashboard every 60 seconds only by reading `daily_volumes`; timers must never calculate or simulate values.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
