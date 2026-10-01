@@ -11,6 +11,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { Activity, BadgeDollarSign, CircleDollarSign, DollarSign, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
@@ -37,6 +38,35 @@ const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(
     new Date(`${value}T12:00:00`),
   );
+
+type MetricCardProps = {
+  accent: "metric-green-card" | "metric-blue-card" | "metric-purple-card" | "metric-orange-card";
+  detail: string;
+  icon: typeof DollarSign;
+  label: string;
+  value: React.ReactNode;
+};
+
+function MetricCard({ accent, detail, icon: Icon, label, value }: MetricCardProps) {
+  return (
+    <article
+      className={`metric-card ${accent} min-w-0 p-5 text-metric-foreground transition-all duration-300 hover:scale-[1.02] hover:shadow-xl sm:p-6`}
+    >
+      <div className="flex items-start justify-between gap-4">
+        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color-mix(in_oklab,var(--metric-accent)_12%,transparent)] text-[var(--metric-accent)]">
+          <Icon aria-hidden="true" className="size-5" strokeWidth={2.2} />
+        </span>
+        <span className="flex items-center gap-1 text-xs font-bold text-metric-green">
+          <TrendingUp aria-hidden="true" className="size-3.5" />
+          REAL
+        </span>
+      </div>
+      <p className="mt-6 text-sm font-semibold uppercase tracking-wide text-metric-muted">{label}</p>
+      <p className="mt-2 min-w-0 break-words text-3xl font-bold tabular-nums leading-tight">{value}</p>
+      <p className="mt-3 text-xs font-medium text-metric-muted">{detail}</p>
+    </article>
+  );
+}
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -165,20 +195,18 @@ function BrasaAoVivo() {
     },
   }), []);
 
-  const metric = "border-t border-border pt-5 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0";
-
   return (
     <main className="grid-texture min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-6xl px-5 py-6 sm:px-8 sm:py-10">
-        <header className="mb-8 flex flex-col gap-4 border-b border-border pb-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-3">
-            <img src={logo.url} alt="Logo Brasa" className="size-11 rounded-full object-cover ring-1 ring-border" />
-            <div>
+      <div className="mx-auto w-full max-w-[1400px] px-5 py-6 sm:px-8 sm:py-8">
+        <header className="mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border pb-5 sm:flex sm:justify-between">
+          <div className="flex min-w-0 items-center gap-3">
+            <img src={logo.url} alt="Logo Brasa" className="size-11 shrink-0 rounded-full object-cover ring-1 ring-border" />
+            <div className="min-w-0">
               <p className="text-lg font-bold leading-none">BRASA</p>
-              <p className="mt-1 text-xs font-semibold text-muted-foreground">Índice real PIX → USDC na Solana</p>
+              <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">Índice real PIX → USDC na Solana</p>
             </div>
           </div>
-          <div className="flex items-center gap-2 text-xs font-bold text-primary">
+          <div className="flex shrink-0 items-center gap-2 text-xs font-bold text-primary">
             <span className="relative flex size-2.5" aria-hidden="true">
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
               <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
@@ -187,43 +215,23 @@ function BrasaAoVivo() {
           </div>
         </header>
 
-        <section className="mb-4 border-y border-border bg-card/80 py-6 sm:px-6">
+        <section className="mb-6">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Resumo de hoje</p>
           {carregando || !resumo ? (
-            <div className="flex min-h-32 items-center text-sm font-medium text-muted-foreground">
-              Carregando dados reais da blockchain...
+            <div className="flex min-h-44 items-center text-sm font-medium text-muted-foreground">
+              Carregando dados reais da blockchain Solana...
             </div>
           ) : (
-            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground">Volume Total</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(volumeTotal)}</p>
-              </div>
-              <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">Volume USDC</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">
-                   {formatUSDC(volumeUsdc)} <span className="text-sm text-muted-foreground">USDC</span>
-                </p>
-              </div>
-              <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">Transações</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">
-                  {asNumber(resumo?.tx_count).toLocaleString("pt-BR")}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">PIX convertidos hoje</p>
-              </div>
-              <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">Dólar</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-primary">
-                  {formatBRL(asNumber(resumo?.usd_brl_rate))}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">Cotação usada no índice</p>
-              </div>
+            <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
+              <MetricCard accent="metric-green-card" detail="Volume convertido na leitura mais recente" icon={DollarSign} label="Volume Total" value={formatBRL(volumeTotal)} />
+              <MetricCard accent="metric-blue-card" detail="Liquidação digital na rede Solana" icon={CircleDollarSign} label="Volume USDC" value={<>{formatUSDC(volumeUsdc)} <span className="text-base font-semibold text-metric-muted">USDC</span></>} />
+              <MetricCard accent="metric-purple-card" detail="PIX convertidos na leitura mais recente" icon={Activity} label="Transações" value={asNumber(resumo.tx_count).toLocaleString("pt-BR")} />
+              <MetricCard accent="metric-orange-card" detail="Cotação usada no índice" icon={BadgeDollarSign} label="Cotação Dólar" value={formatBRL(asNumber(resumo.usd_brl_rate))} />
             </div>
           )}
         </section>
 
-        <section className="relative overflow-hidden border-y border-border bg-card/80 py-6 sm:px-6">
+        <section className="relative w-full overflow-hidden rounded-2xl border border-border bg-card/80 p-5 shadow-xl backdrop-blur sm:p-7">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <h1 className="text-xl font-bold">Volume nos últimos 7 dias</h1>
             {variacaoSeteDias != null && (

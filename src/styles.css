@@ -36,6 +36,13 @@
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
   --color-highlight: var(--highlight);
+  --color-metric-surface: var(--metric-surface);
+  --color-metric-foreground: var(--metric-foreground);
+  --color-metric-muted: var(--metric-muted);
+  --color-metric-green: var(--metric-green);
+  --color-metric-blue: var(--metric-blue);
+  --color-metric-purple: var(--metric-purple);
+  --color-metric-orange: var(--metric-orange);
   --color-secondary: var(--secondary);
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
@@ -73,6 +80,13 @@
   --popover-foreground: oklch(0.985 0 0);
   --primary: #16a34a;
   --highlight: #facc15;
+  --metric-surface: oklch(0.99 0.004 145 / 82%);
+  --metric-foreground: oklch(0.2 0.025 155);
+  --metric-muted: oklch(0.48 0.025 255);
+  --metric-green: #16a34a;
+  --metric-blue: #2563eb;
+  --metric-purple: #7c3aed;
+  --metric-orange: #ea580c;
   --gradient-brand: linear-gradient(90deg, #16a34a, #facc15);
   --glow: color-mix(in oklab, #16a34a 35%, transparent);
   --primary-foreground: #0a1a12;
@@ -155,4 +169,32 @@
     linear-gradient(to right, oklch(1 0 0 / 2.5%) 1px, transparent 1px),
     linear-gradient(to bottom, oklch(1 0 0 / 2.5%) 1px, transparent 1px);
   background-size: 48px 48px;
+}
+
+@utility metric-card {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid color-mix(in oklab, var(--metric-muted) 22%, transparent);
+  border-radius: var(--radius);
+  background:
+    linear-gradient(145deg, color-mix(in oklab, var(--metric-accent) 10%, transparent), transparent 58%),
+    var(--metric-surface);
+  box-shadow: 0 18px 50px -24px color-mix(in oklab, var(--metric-accent) 45%, transparent);
+  backdrop-filter: blur(18px);
+}
+
+@utility metric-green-card {
+  --metric-accent: var(--metric-green);
+}
+
+@utility metric-blue-card {
+  --metric-accent: var(--metric-blue);
+}
+
+@utility metric-purple-card {
+  --metric-accent: var(--metric-purple);
+}
+
+@utility metric-orange-card {
+  --metric-accent: var(--metric-orange);
 }
