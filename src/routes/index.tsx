@@ -29,12 +29,19 @@ type DailyVolume = {
   date: string;
   total_brl: number | string | null;
   total_usdc: number | string | null;
+  economia_vs_banco?: number | string | null;
   economy_brl: number | string | null;
-  usd_brl_rate: number | string | null;
   tx_count: number | string | null;
 };
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
+const getLocalDate = () => {
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+};
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(
     new Date(`${value}T12:00:00`),
@@ -69,30 +76,30 @@ function BrasaAoVivo() {
     let active = true;
 
     async function fetchDashboard() {
-      const [latestResult, historyResult] = await Promise.all([
+      const [todayResult, historyResult] = await Promise.all([
         supabase
           .from("daily_volumes")
-          .select("date,total_brl,total_usdc,economy_brl,usd_brl_rate,tx_count")
-          .order("date", { ascending: false })
+          .select("*")
+          .eq("date", getLocalDate())
           .limit(1)
           .returns<DailyVolume[]>(),
         supabase
           .from("daily_volumes")
-          .select("date,total_brl")
-          .order("date", { ascending: true })
+          .select("*")
+          .order("date", { ascending: false })
           .limit(7)
           .returns<DailyVolume[]>(),
       ]);
 
       if (!active) return;
 
-      if (latestResult.error || historyResult.error) {
-        console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error);
+      if (todayResult.error || historyResult.error) {
+        console.warn("Não foi possível carregar daily_volumes:", todayResult.error ?? historyResult.error);
         setResumo(null);
         setHistorico([]);
       } else {
-        setResumo(latestResult.data?.[0] ?? null);
-        setHistorico(historyResult.data ?? []);
+        setResumo(todayResult.data?.[0] ?? null);
+        setHistorico([...(historyResult.data ?? [])].reverse());
       }
       setCarregando(false);
     }
@@ -111,6 +118,10 @@ function BrasaAoVivo() {
     if (inicial <= 0) return null;
     return ((atual - inicial) / inicial) * 100;
   }, [historico]);
+
+  const volumeTotal = asNumber(resumo?.total_brl);
+  const economiaTotal = asNumber(resumo?.economia_vs_banco ?? resumo?.economy_brl);
+  const percentualEconomizado = volumeTotal > 0 ? (economiaTotal / volumeTotal) * 100 : 0;
 
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: historico.map((item) => formatDate(item.date)),
@@ -188,40 +199,31 @@ function BrasaAoVivo() {
             <div className="flex min-h-32 items-center text-sm font-medium text-muted-foreground">
               Carregando dados on-chain...
             </div>
-          ) : !resumo ? (
-            <div className="flex min-h-32 items-center text-sm font-medium text-muted-foreground">
-              Base pronta — aguardando primeiro ETL.
-            </div>
           ) : (
-            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-5">
+            <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
               <div>
-                <p className="text-xs font-semibold text-muted-foreground">Volume hoje</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(asNumber(resumo.total_brl))}</p>
+                <p className="text-xs font-semibold text-muted-foreground">Volume Total</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums">{formatBRL(volumeTotal)}</p>
               </div>
               <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">Volume Solana</p>
+                <p className="text-xs font-semibold text-muted-foreground">Volume USDC</p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">
-                  {formatUSDC(asNumber(resumo.total_usdc))} <span className="text-sm text-muted-foreground">USDC</span>
+                  {formatUSDC(asNumber(resumo?.total_usdc))} <span className="text-sm text-muted-foreground">USDC</span>
                 </p>
               </div>
               <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">Economia vs Bancos</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(asNumber(resumo.economy_brl))}</p>
+                <p className="text-xs font-semibold text-muted-foreground">Transações</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">
+                  {asNumber(resumo?.tx_count).toLocaleString("pt-BR")}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">PIX convertidos hoje</p>
+              </div>
+              <div className={metric}>
+                <p className="text-xs font-semibold text-muted-foreground">Economia vs Banco</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(economiaTotal)}</p>
                 <span className="mt-2 inline-flex border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-                  Economia média de 3,7% por transação
+                  {percentualEconomizado.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% economizado vs bancos
                 </span>
-              </div>
-              <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">Dólar</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums">{formatUSD(asNumber(resumo.usd_brl_rate))}</p>
-                <p className="mt-1 text-xs text-muted-foreground">Cotação BRL por USD</p>
-              </div>
-              <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">PIX convertidos hoje</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">
-                  {asNumber(resumo.tx_count).toLocaleString("pt-BR")}
-                </p>
-                <p className="mt-1 text-xs text-muted-foreground">transações on-chain</p>
               </div>
             </div>
           )}
