@@ -1,6 +1,13 @@
 export const formatBRL = (v: number) =>
   new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" }).format(v);
 
+export const formatBRLWhole = (v: number) =>
+  new Intl.NumberFormat("pt-BR", {
+    style: "currency",
+    currency: "BRL",
+    maximumFractionDigits: 0,
+  }).format(v);
+
 export const formatBRLCompact = (v: number) =>
   new Intl.NumberFormat("pt-BR", {
     style: "currency",

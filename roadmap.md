@@ -13,3 +13,4 @@
 - [x] Visual compacto restaurado com resumo único e gráfico usando somente dias reais disponíveis
 - [x] Resumo mobile compactado, transações restauradas e variação calculada entre os dois dias reais mais recentes
 - [x] Header simplificado, horário da última leitura exibido e variações anormais tratadas como novo período real
+- [x] Gráfico semanal com calendário de 7 dias, estados aguardando coleta, tooltip único e insight Solana no Brasil
