@@ -42,9 +42,9 @@ const referenceDate = () =>
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Brasa ao vivo | Quanto custa trazer dólar na Solana" },
+      { title: "Brasa | Índice PIX para USDC na Solana" },
       { name: "description", content: "Volume real de PIX convertido em USDC na Solana, atualizado a cada 60 segundos." },
-      { property: "og:title", content: "Brasa ao vivo | Quanto custa trazer dólar na Solana" },
+      { property: "og:title", content: "Brasa | Índice PIX para USDC na Solana" },
       { property: "og:description", content: "Resumo on-chain de volume, economia e pontos Brasa." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
@@ -57,6 +57,7 @@ function BrasaAoVivo() {
   const [resumo, setResumo] = useState<DailyVolume | null>(null);
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
   const [carregando, setCarregando] = useState(true);
+  const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -73,6 +74,14 @@ function BrasaAoVivo() {
       }
       setResumo(latestResult.data ?? null);
       setHistorico([...(historyResult.data ?? [])].reverse());
+      if (!latestResult.error && !historyResult.error) {
+        setAtualizadoEm(new Intl.DateTimeFormat("pt-BR", {
+          hour: "2-digit",
+          minute: "2-digit",
+          hour12: false,
+          timeZone: "America/Sao_Paulo",
+        }).format(new Date()));
+      }
       setCarregando(false);
     }
 
@@ -97,6 +106,7 @@ function BrasaAoVivo() {
     if (anterior <= 0) return null;
     return ((totalBrl - anterior) / anterior) * 100;
   }, [historico, totalBrl]);
+  const variacaoForaDaFaixa = variacao != null && (variacao < -50 || variacao > 200);
 
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: historico.map((item) => formatDate(item.date)),
@@ -109,6 +119,7 @@ function BrasaAoVivo() {
         borderWidth: 3,
         pointBackgroundColor: "#22c55e",
         pointRadius: 4,
+        showLine: historico.length >= 3,
         fill: true,
         tension: 0.4,
       },
@@ -120,6 +131,7 @@ function BrasaAoVivo() {
         borderWidth: 2,
         pointBackgroundColor: "#facc15",
         pointRadius: 3,
+        showLine: historico.length >= 3,
         tension: 0.4,
       },
     ],
@@ -150,26 +162,23 @@ function BrasaAoVivo() {
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[480px] px-4 py-6 md:max-w-[900px] md:px-8 md:py-10">
         <header className="mb-6 border-b border-border pb-5">
-          <div className="flex items-start justify-between gap-4">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:flex md:justify-between">
             <div className="flex min-w-0 items-center gap-3">
               <img src={logo.url} alt="Logo Brasa" className="size-11 shrink-0 rounded-full object-cover ring-1 ring-border" />
-              <div className="min-w-0">
-                <p className="text-sm font-bold md:text-base">BRASA</p>
-                <h1 className="mt-1 text-sm font-medium leading-snug text-muted-foreground md:text-base">Quanto custa trazer dólar na Solana hoje</h1>
-              </div>
+              <p className="truncate text-sm font-bold md:text-base">BRASA</p>
             </div>
-            <div className="shrink-0 text-right">
-              <div className="flex items-center justify-end gap-2 text-xs font-bold text-primary">
-                <span className="relative flex size-2.5" aria-hidden="true">
-                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
-                  <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
-                </span>
-                {totalUsdc > 0 ? "REAL ON-CHAIN" : "AO VIVO"}
-              </div>
-              <p className="mt-1 text-[11px] text-muted-foreground">atualiza a cada 60s</p>
+            <div className="flex shrink-0 items-center justify-end gap-2 text-[11px] font-bold text-primary md:text-xs">
+              <span className="relative flex size-2.5" aria-hidden="true">
+                <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
+                <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
+              </span>
+              REAL ON-CHAIN
             </div>
           </div>
-          <p className="mt-4 text-xs text-muted-foreground">Referência hoje: {referenceDate()}</p>
+          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <p>Referência hoje: {referenceDate()}</p>
+            {atualizadoEm && <p className="shrink-0">Atualizado às {atualizadoEm}</p>}
+          </div>
         </header>
 
         <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
@@ -181,14 +190,16 @@ function BrasaAoVivo() {
               <div className="py-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <strong className="text-2xl font-bold lg:text-3xl">{formatBRL(totalBrl)}</strong>
-                  {variacao != null && (
+                  {variacaoForaDaFaixa ? (
+                    <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">Novo período real</span>
+                  ) : variacao != null ? (
                     <span className={`text-xs font-bold ${variacao >= 0 ? "text-primary" : "text-destructive"}`}>
                       {variacao >= 0 ? "↑ +" : "↓ -"}{Math.abs(variacao).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% hoje
                     </span>
-                  )}
+                  ) : null}
                 </div>
                 <p className={`mt-1.5 text-[11px] lg:text-sm ${variacao == null ? "text-highlight" : "text-muted-foreground"}`}>
-                  {variacao == null ? "• Primeiro dia real" : "Volume hoje"}
+                  {variacao == null ? "• Primeiro dia real" : variacaoForaDaFaixa ? "Volume hoje" : "Volume hoje"}
                 </p>
               </div>
               <div className="py-3">
