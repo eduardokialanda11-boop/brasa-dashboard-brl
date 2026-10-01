@@ -11,10 +11,13 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { Activity } from "lucide-react";
+import { Activity, Info, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
+import { OnchainProofsDialog, type TransactionRow } from "@/components/onchain-proofs-dialog";
+import { Button } from "@/components/ui/button";
+import { Tooltip as InfoTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/lib/supabase";
 import { formatBRL, formatBRLCompact, formatBRLWhole, formatUSDC } from "@/utils/format";
 
@@ -71,6 +74,11 @@ function BrasaAoVivo() {
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
+  const [atualizadoEmCompleto, setAtualizadoEmCompleto] = useState<Date | null>(null);
+  const [transactions, setTransactions] = useState<TransactionRow[]>([]);
+  const [provasAbertas, setProvasAbertas] = useState(false);
+  const [provasCarregando, setProvasCarregando] = useState(true);
+  const [provasErro, setProvasErro] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -88,12 +96,27 @@ function BrasaAoVivo() {
       setResumo(latestResult.data ?? null);
       setHistorico([...(historyResult.data ?? [])].reverse());
       if (!latestResult.error && !historyResult.error) {
+        const now = new Date();
         setAtualizadoEm(new Intl.DateTimeFormat("pt-BR", {
           hour: "2-digit",
           minute: "2-digit",
           hour12: false,
           timeZone: "America/Sao_Paulo",
-        }).format(new Date()));
+        }).format(now));
+        setAtualizadoEmCompleto(now);
+      }
+      const latestDate = latestResult.data?.date;
+      if (latestDate) {
+        setProvasCarregando(true);
+        const transactionResult = await supabase.from("transactions").select("*").eq("date", latestDate);
+        if (!active) return;
+        setTransactions((transactionResult.data ?? []) as TransactionRow[]);
+        setProvasErro(Boolean(transactionResult.error));
+        setProvasCarregando(false);
+      } else {
+        setTransactions([]);
+        setProvasErro(false);
+        setProvasCarregando(false);
       }
       setCarregando(false);
     }
@@ -112,6 +135,24 @@ function BrasaAoVivo() {
   const dolar = asNumber(resumo?.usd_brl_rate);
   const economia = totalBrl * 0.037;
   const pontos = totalBrl / 100;
+  const syncDateTime = atualizadoEmCompleto
+    ? new Intl.DateTimeFormat("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "America/Sao_Paulo",
+      }).format(atualizadoEmCompleto)
+    : "—";
+  const nextSync = atualizadoEmCompleto
+    ? new Intl.DateTimeFormat("pt-BR", {
+        hour: "2-digit",
+        minute: "2-digit",
+        hour12: false,
+        timeZone: "America/Sao_Paulo",
+      }).format(new Date(atualizadoEmCompleto.getTime() + 60_000))
+    : "—";
 
   const variacao = useMemo(() => {
     if (historico.length < 2) return null;
@@ -145,6 +186,8 @@ function BrasaAoVivo() {
     const crescimento = historico.length === 7 && primeiro > 0 ? ((ultimo - primeiro) / primeiro) * 100 : null;
     return { media, pico, picoData, crescimento };
   }, [historico]);
+  const chartMaximum = Math.max(1, ...historico.map((item) => asNumber(item.total_brl))) * 1.3;
+  const progress = Math.min(100, Math.round((historico.length / 7) * 100));
 
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: semana.map((item) => `${formatWeekday(item.date)} ${formatDate(item.date)}`),
@@ -209,14 +252,28 @@ function BrasaAoVivo() {
       },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { color: "#8fb09c" } },
+      x: {
+        grid: { display: false },
+        ticks: {
+          color: "#8fb09c",
+          maxRotation: 0,
+          minRotation: 0,
+          autoSkip: false,
+          callback: function (_value, index) {
+            if (this.chart.width < 500 && ![0, 3, 6].includes(index)) return "";
+            const item = semana[index];
+            return item ? [formatDate(item.date), formatWeekday(item.date)] : "";
+          },
+        },
+      },
       y: {
         beginAtZero: true,
+        max: chartMaximum,
         grid: { color: "rgba(255,255,255,.06)" },
         ticks: { color: "#8fb09c", callback: (value) => formatBRLCompact(Number(value)) },
       },
     },
-  }), [semana]);
+  }), [chartMaximum, semana]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -267,15 +324,30 @@ function BrasaAoVivo() {
                 <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Volume na Solana</p>
               </div>
               <div className="py-3">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex items-center gap-2">
                   <Activity aria-hidden="true" className="size-4 shrink-0 text-primary" />
-                  <strong className="text-2xl font-bold lg:text-3xl">{transacoes.toLocaleString("pt-BR")} <span className="text-sm text-muted-foreground lg:text-base">txs</span></strong>
+                    <Button variant="ghost" className="h-auto p-0 text-2xl font-bold text-foreground hover:bg-transparent hover:text-primary lg:text-3xl" onClick={() => setProvasAbertas(true)}>
+                      {transacoes.toLocaleString("pt-BR")} <span className="text-sm text-muted-foreground lg:text-base">txs</span>
+                    </Button>
+                  </div>
+                  <Button variant="outline" size="sm" onClick={() => setProvasAbertas(true)}><Search aria-hidden="true" /> Ver provas</Button>
                 </div>
                 <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">PIX convertidos na leitura mais recente</p>
               </div>
               <div className="py-3">
                 <div className="flex flex-wrap items-baseline gap-3"><strong className="text-2xl font-bold text-primary lg:text-3xl">{formatBRL(economia)}</strong><span className="text-sm font-bold text-primary">3,7%</span></div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Economia vs bancos</p>
+                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground lg:text-sm">
+                  <span>Economia vs bancos</span>
+                  <TooltipProvider>
+                    <InfoTooltip>
+                      <TooltipTrigger asChild>
+                        <Button variant="ghost" size="icon" className="size-5 text-muted-foreground" aria-label="Como a economia é calculada"><Info aria-hidden="true" /></Button>
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-64 bg-popover text-popover-foreground">Estimativa: volume × 3,7%, referência de spread bancário. IOF pode variar por operação.</TooltipContent>
+                    </InfoTooltip>
+                  </TooltipProvider>
+                </div>
               </div>
               <div className="py-3">
                 <strong className="text-2xl font-bold text-highlight lg:text-3xl">{(pontos / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil pontos</strong>
@@ -285,6 +357,9 @@ function BrasaAoVivo() {
                 <strong className="text-2xl font-bold lg:text-3xl">{formatBRL(dolar)}</strong>
                 <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Dólar de referência: {formatBRL(dolar)}</p>
               </div>
+              <div className="mt-3 border-t border-border pt-3 text-[10px] leading-relaxed text-muted-foreground">
+                Última sync: {syncDateTime} UTC-3 <span aria-hidden="true">|</span> Próxima: {nextSync} <span aria-hidden="true">|</span> Status: <span className="text-primary">● Coletando</span> <span aria-hidden="true">|</span> Carteiras: 12 monitoradas
+              </div>
             </div>
           )}
         </section>
@@ -292,7 +367,15 @@ function BrasaAoVivo() {
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-xl md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold md:text-xl">Volume nos últimos 7 dias</h2>
-            <span className="text-xs text-muted-foreground">{historico.length}/7 dias reais</span>
+            {insight?.crescimento != null ? (
+              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${insight.crescimento >= 0 ? "bg-primary/10 text-primary" : "bg-accent text-highlight"}`}>
+                {insight.crescimento >= 0 ? `📈 Solana crescendo +${insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% no Brasil` : `📉 Em correção ${insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
+              </span>
+            ) : <span className="text-xs text-muted-foreground">{historico.length}/7 dias reais</span>}
+          </div>
+          <div className="mt-4">
+            <div className="mb-1.5 flex justify-between text-[11px] text-muted-foreground"><span>Coleta: {historico.length}/7 dias</span><span>{progress}%</span></div>
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${progress}%` }} /></div>
           </div>
           <div className="mt-5 h-[200px] lg:h-[320px]">
             {historico.length ? <Line data={chartData} options={chartOptions} /> : <p className="pt-24 text-center text-sm text-muted-foreground">Base pronta — aguardando primeiro ETL.</p>}
@@ -314,7 +397,26 @@ function BrasaAoVivo() {
             </div>
           )}
         </section>
+
+        <section className="mt-6 rounded-xl border border-border bg-card p-4 shadow-xl md:p-6">
+          <h2 className="text-lg font-bold md:text-xl">Como funciona</h2>
+          <div className="mt-4 grid gap-5 md:grid-cols-3 md:divide-x md:divide-border">
+            <article className="md:pr-5">
+              <h3 className="font-semibold">👛 Carteiras monitoradas</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">12 gateways PIX→USDC monitorados continuamente, 24 horas por dia.</p>
+            </article>
+            <article className="md:px-5">
+              <h3 className="font-semibold">🔎 Detecção</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Transferências USDC acima de US$ 10 associadas a PIX contam como uma conversão. O hash único evita duplicidade. Fonte: Solana RPC.</p>
+            </article>
+            <article className="md:pl-5">
+              <h3 className="font-semibold">💰 Economia estimada</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Cálculo: volume × 3,7%, usando spread bancário como referência. IOF varia por operação. Estimativa auditável.</p>
+            </article>
+          </div>
+        </section>
       </div>
+      <OnchainProofsDialog open={provasAbertas} onOpenChange={setProvasAbertas} rows={transactions} loading={provasCarregando} error={provasErro} />
     </main>
   );
 }
