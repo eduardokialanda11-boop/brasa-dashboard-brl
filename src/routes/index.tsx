@@ -34,13 +34,6 @@ type DailyVolume = {
 };
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
-const getLocalDate = () => {
-  const now = new Date();
-  const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${year}-${month}-${day}`;
-};
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(
     new Date(`${value}T12:00:00`),
@@ -221,7 +214,7 @@ function BrasaAoVivo() {
                 <p className="text-xs font-semibold text-muted-foreground">Economia vs Banco</p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(economiaTotal)}</p>
                 <span className="mt-2 inline-flex border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-                  {percentualEconomizado.toLocaleString("en-US", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% economizado vs bancos
+                  {percentualEconomizado.toFixed(1)}% economizado vs bancos
                 </span>
               </div>
             </div>
