@@ -19,7 +19,6 @@ import {
   formatBRL,
   formatBRLCompact,
   formatBRLInternationalCompact,
-  formatUSD,
   formatUSDC,
 } from "@/utils/format";
 
