@@ -11,6 +11,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
+import { Activity } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
@@ -85,6 +86,7 @@ function BrasaAoVivo() {
 
   const totalBrl = asNumber(resumo?.total_brl);
   const totalUsdc = asNumber(resumo?.total_usdc);
+  const transacoes = asNumber(resumo?.tx_count);
   const dolar = asNumber(resumo?.usd_brl_rate);
   const economia = totalBrl * 0.037;
   const pontos = totalBrl / 100;
@@ -152,7 +154,7 @@ function BrasaAoVivo() {
             <div className="flex min-w-0 items-center gap-3">
               <img src={logo.url} alt="Logo Brasa" className="size-11 shrink-0 rounded-full object-cover ring-1 ring-border" />
               <div className="min-w-0">
-                <p className="text-base font-bold">BRASA</p>
+                <p className="text-sm font-bold md:text-base">BRASA</p>
                 <h1 className="mt-1 text-sm font-medium leading-snug text-muted-foreground md:text-base">Quanto custa trazer dólar na Solana hoje</h1>
               </div>
             </div>
@@ -170,34 +172,47 @@ function BrasaAoVivo() {
           <p className="mt-4 text-xs text-muted-foreground">Referência hoje: {referenceDate()}</p>
         </header>
 
-        <section className="rounded-2xl border border-border bg-card p-6 shadow-xl">
-          <p className="mb-6 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Resumo de hoje</p>
+        <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground lg:text-xs">Resumo de hoje</p>
           {carregando ? (
             <p className="py-16 text-center text-sm text-muted-foreground">Carregando dados reais da blockchain Solana...</p>
           ) : (
-            <div>
-              <div className="mb-4 border-b border-border pb-4">
+            <div className="divide-y divide-border">
+              <div className="py-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
-                  <strong className="text-3xl font-bold md:text-4xl">{formatBRL(totalBrl)}</strong>
-                  {variacao != null && <span className="text-sm font-bold text-primary">{variacao >= 0 ? "↑" : "↓"} {Math.abs(variacao).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</span>}
+                  <strong className="text-2xl font-bold lg:text-3xl">{formatBRL(totalBrl)}</strong>
+                  {variacao != null && (
+                    <span className={`text-xs font-bold ${variacao >= 0 ? "text-primary" : "text-destructive"}`}>
+                      {variacao >= 0 ? "↑ +" : "↓ -"}{Math.abs(variacao).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% hoje
+                    </span>
+                  )}
                 </div>
-                <p className="mt-2 text-sm text-muted-foreground">{variacao == null ? "Volume hoje" : `${variacao >= 0 ? "↑" : "↓"} ${Math.abs(variacao).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% hoje`}</p>
+                <p className={`mt-1.5 text-[11px] lg:text-sm ${variacao == null ? "text-highlight" : "text-muted-foreground"}`}>
+                  {variacao == null ? "• Primeiro dia real" : "Volume hoje"}
+                </p>
               </div>
-              <div className="mb-4 border-b border-border pb-4">
-                <strong className="text-2xl font-bold md:text-3xl">{formatUSDC(totalUsdc)} <span className="text-base text-muted-foreground">USDC</span></strong>
-                <p className="mt-2 text-sm text-muted-foreground">Volume na Solana</p>
+              <div className="py-3">
+                <strong className="text-2xl font-bold lg:text-3xl">{formatUSDC(totalUsdc)} <span className="text-sm text-muted-foreground lg:text-base">USDC</span></strong>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Volume na Solana</p>
               </div>
-              <div className="mb-4 border-b border-border pb-4">
-                <div className="flex flex-wrap items-baseline gap-3"><strong className="text-2xl font-bold text-primary md:text-3xl">{formatBRL(economia)}</strong><span className="text-sm font-bold text-primary">3,7%</span></div>
-                <p className="mt-2 text-sm text-muted-foreground">Economia vs bancos</p>
+              <div className="py-3">
+                <div className="flex items-center gap-2">
+                  <Activity aria-hidden="true" className="size-4 shrink-0 text-primary" />
+                  <strong className="text-2xl font-bold lg:text-3xl">{transacoes.toLocaleString("pt-BR")} <span className="text-sm text-muted-foreground lg:text-base">txs</span></strong>
+                </div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">PIX convertidos na leitura mais recente</p>
               </div>
-              <div className="mb-4 border-b border-border pb-4">
-                <strong className="text-2xl font-bold text-highlight md:text-3xl">{(pontos / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil pontos</strong>
-                <p className="mt-2 text-sm text-muted-foreground">Pontos Brasa</p>
+              <div className="py-3">
+                <div className="flex flex-wrap items-baseline gap-3"><strong className="text-2xl font-bold text-primary lg:text-3xl">{formatBRL(economia)}</strong><span className="text-sm font-bold text-primary">3,7%</span></div>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Economia vs bancos</p>
               </div>
-              <div>
-                <strong className="text-2xl font-bold md:text-3xl">{formatBRL(dolar)}</strong>
-                <p className="mt-2 text-sm text-muted-foreground">Dólar de referência: {formatBRL(dolar)}</p>
+              <div className="py-3">
+                <strong className="text-2xl font-bold text-highlight lg:text-3xl">{(pontos / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil pontos</strong>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Pontos Brasa</p>
+              </div>
+              <div className="pt-3">
+                <strong className="text-2xl font-bold lg:text-3xl">{formatBRL(dolar)}</strong>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Dólar de referência: {formatBRL(dolar)}</p>
               </div>
             </div>
           )}
@@ -208,7 +223,7 @@ function BrasaAoVivo() {
             <h2 className="text-lg font-bold md:text-xl">Volume nos últimos 7 dias</h2>
             <span className="text-xs text-muted-foreground">{historico.length} {historico.length === 1 ? "dia real" : "dias reais"}</span>
           </div>
-          <div className="mt-5 h-[260px] md:h-[300px]">
+          <div className="mt-5 h-[200px] lg:h-[320px]">
             {historico.length ? <Line data={chartData} options={chartOptions} /> : <p className="pt-24 text-center text-sm text-muted-foreground">Base pronta — aguardando primeiro ETL.</p>}
           </div>
         </section>
