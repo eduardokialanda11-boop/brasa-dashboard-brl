@@ -11,17 +11,11 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { Activity, BadgeDollarSign, CircleDollarSign, DollarSign, TrendingUp } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 
 import logo from "@/assets/brasa-logo.jpg.asset.json";
 import { supabase } from "@/lib/supabase";
-import {
-  formatBRL,
-  formatBRLCompact,
-  formatBRLInternationalCompact,
-  formatUSDC,
-} from "@/utils/format";
+import { formatBRL, formatBRLCompact, formatUSDC } from "@/utils/format";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
@@ -35,52 +29,22 @@ type DailyVolume = {
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
 const formatDate = (value: string) =>
-  new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(
-    new Date(`${value}T12:00:00`),
-  );
+  new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${value}T12:00:00`));
 
-type MetricCardProps = {
-  accent: "metric-green-card" | "metric-blue-card" | "metric-purple-card" | "metric-orange-card";
-  detail: string;
-  icon: typeof DollarSign;
-  label: string;
-  value: React.ReactNode;
-};
-
-function MetricCard({ accent, detail, icon: Icon, label, value }: MetricCardProps) {
-  return (
-    <article
-      className={`metric-card ${accent} min-w-0 p-5 text-metric-foreground transition-all duration-300 hover:scale-[1.02] hover:shadow-xl sm:p-6`}
-    >
-      <div className="flex items-start justify-between gap-4">
-        <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color-mix(in_oklab,var(--metric-accent)_12%,transparent)] text-[var(--metric-accent)]">
-          <Icon aria-hidden="true" className="size-5" strokeWidth={2.2} />
-        </span>
-        <span className="flex items-center gap-1 text-xs font-bold text-metric-green">
-          <TrendingUp aria-hidden="true" className="size-3.5" />
-          REAL
-        </span>
-      </div>
-      <p className="mt-6 text-sm font-semibold uppercase tracking-wide text-metric-muted">{label}</p>
-      <p className="mt-2 min-w-0 break-words text-3xl font-bold tabular-nums leading-tight">{value}</p>
-      <p className="mt-3 text-xs font-medium text-metric-muted">{detail}</p>
-    </article>
-  );
-}
+const referenceDate = () =>
+  new Intl.DateTimeFormat("pt-BR", {
+    day: "2-digit",
+    month: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date());
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: "Brasa ao vivo | Índice PIX para USDC na Solana" },
-      {
-        name: "description",
-        content: "Índice ao vivo do volume de PIX convertido em USDC na Solana por 12 carteiras monitoradas.",
-      },
-      { property: "og:title", content: "Brasa ao vivo | Índice PIX para USDC na Solana" },
-      {
-        property: "og:description",
-        content: "Volume on-chain de PIX para USDC, economia e crescimento do uso da Solana no Brasil.",
-      },
+      { title: "Brasa ao vivo | Quanto custa trazer dólar na Solana" },
+      { name: "description", content: "Volume real de PIX convertido em USDC na Solana, atualizado a cada 60 segundos." },
+      { property: "og:title", content: "Brasa ao vivo | Quanto custa trazer dólar na Solana" },
+      { property: "og:description", content: "Resumo on-chain de volume, economia e pontos Brasa." },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },
     ],
@@ -98,74 +62,65 @@ function BrasaAoVivo() {
 
     async function fetchDashboard() {
       const [latestResult, historyResult] = await Promise.all([
-        supabase
-          .from("daily_volumes")
-          .select("*")
-          .order("date", { ascending: false })
-          .limit(1)
-          .single<DailyVolume>(),
-        supabase
-          .from("daily_volumes")
-          .select("*")
-          .order("date", { ascending: false })
-          .limit(7)
-          .returns<DailyVolume[]>(),
+        supabase.from("daily_volumes").select("*").order("date", { ascending: false }).limit(1).maybeSingle<DailyVolume>(),
+        supabase.from("daily_volumes").select("*").order("date", { ascending: false }).limit(7).returns<DailyVolume[]>(),
       ]);
 
       if (!active) return;
-
       if (latestResult.error || historyResult.error) {
         console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error);
-        setResumo(null);
-        if (historyResult.error) setHistorico([]);
-      } else {
-        setResumo(latestResult.data);
-        setHistorico([...(historyResult.data ?? [])].reverse());
       }
+      setResumo(latestResult.data ?? null);
+      setHistorico([...(historyResult.data ?? [])].reverse());
       setCarregando(false);
     }
 
     void fetchDashboard();
-    const refreshInterval = window.setInterval(() => {
-      void fetchDashboard();
-    }, 60_000);
-
+    const refreshInterval = window.setInterval(() => void fetchDashboard(), 60_000);
     return () => {
       active = false;
       window.clearInterval(refreshInterval);
     };
   }, []);
 
-  const variacaoSeteDias = useMemo(() => {
-    if (historico.length < 2) return null;
-    const inicial = asNumber(historico[0]?.total_brl);
-    const atual = asNumber(historico[historico.length - 1]?.total_brl);
-    if (inicial <= 0) return null;
-    return ((atual - inicial) / inicial) * 100;
-  }, [historico]);
+  const totalBrl = asNumber(resumo?.total_brl);
+  const totalUsdc = asNumber(resumo?.total_usdc);
+  const dolar = asNumber(resumo?.usd_brl_rate);
+  const economia = totalBrl * 0.037;
+  const pontos = totalBrl / 100;
 
-  const volumeTotal = asNumber(resumo?.total_brl);
-  const volumeUsdc = asNumber(resumo?.total_usdc);
+  const variacao = useMemo(() => {
+    if (historico.length < 2) return null;
+    const anterior = asNumber(historico[historico.length - 2]?.total_brl);
+    if (anterior <= 0) return null;
+    return ((totalBrl - anterior) / anterior) * 100;
+  }, [historico, totalBrl]);
 
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: historico.map((item) => formatDate(item.date)),
-    datasets: [{
-      data: historico.map((item) => asNumber(item.total_brl)),
-      borderColor: (context) => {
-        const area = context.chart.chartArea;
-        if (!area) return "#16a34a";
-        const gradient = context.chart.ctx.createLinearGradient(area.left, 0, area.right, 0);
-        gradient.addColorStop(0, "#16a34a");
-        gradient.addColorStop(1, "#facc15");
-        return gradient;
+    datasets: [
+      {
+        label: "Volume BRL",
+        data: historico.map((item) => asNumber(item.total_brl)),
+        borderColor: "#22c55e",
+        backgroundColor: "rgba(34,197,94,.12)",
+        borderWidth: 3,
+        pointBackgroundColor: "#22c55e",
+        pointRadius: 4,
+        fill: true,
+        tension: 0.4,
       },
-      backgroundColor: "rgba(22,163,74,0.15)",
-      borderWidth: 3,
-      pointRadius: historico.length === 1 ? 4 : 2,
-      pointBackgroundColor: "#facc15",
-      fill: true,
-      tension: 0.4,
-    }],
+      {
+        label: "USDC em BRL",
+        data: historico.map((item) => asNumber(item.total_usdc) * asNumber(item.usd_brl_rate)),
+        borderColor: "#facc15",
+        backgroundColor: "transparent",
+        borderWidth: 2,
+        pointBackgroundColor: "#facc15",
+        pointRadius: 3,
+        tension: 0.4,
+      },
+    ],
   }), [historico]);
 
   const chartOptions = useMemo<ChartOptions<"line">>(() => ({
@@ -173,86 +128,90 @@ function BrasaAoVivo() {
     maintainAspectRatio: false,
     interaction: { intersect: false, mode: "index" },
     plugins: {
-      legend: { display: false },
+      legend: { labels: { color: "#8fb09c", usePointStyle: true, boxWidth: 7 } },
       tooltip: {
-        backgroundColor: "#132a1f",
-        displayColors: false,
-        callbacks: {
-          title: (items) => items[0]?.label ?? "",
-          label: (context) => formatBRLCompact(Number(context.parsed.y)),
-        },
+        backgroundColor: "#142e23",
+        callbacks: { label: (context) => `${context.dataset.label}: ${formatBRLCompact(Number(context.parsed.y))}` },
       },
     },
     scales: {
-      x: {
-        grid: { display: false },
-        ticks: { autoSkip: false, color: "#8fb09c", maxTicksLimit: 7 },
-      },
+      x: { grid: { display: false }, ticks: { color: "#8fb09c" } },
       y: {
-        grid: { color: "rgba(143,176,156,.08)" },
-        ticks: { color: "#8fb09c", callback: (value) => formatBRLInternationalCompact(Number(value)) },
+        beginAtZero: true,
+        grid: { color: "rgba(255,255,255,.06)" },
+        ticks: { color: "#8fb09c", callback: (value) => formatBRLCompact(Number(value)) },
       },
     },
   }), []);
 
   return (
-    <main className="grid-texture min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1400px] px-5 py-6 sm:px-8 sm:py-8">
-        <header className="mb-8 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 border-b border-border pb-5 sm:flex sm:justify-between">
-          <div className="flex min-w-0 items-center gap-3">
-            <img src={logo.url} alt="Logo Brasa" className="size-11 shrink-0 rounded-full object-cover ring-1 ring-border" />
-            <div className="min-w-0">
-              <p className="text-lg font-bold leading-none">BRASA</p>
-              <p className="mt-1 truncate text-xs font-semibold text-muted-foreground">Índice real PIX → USDC na Solana</p>
+    <main className="min-h-screen bg-background text-foreground">
+      <div className="mx-auto w-full max-w-[480px] px-4 py-6 md:max-w-[900px] md:px-8 md:py-10">
+        <header className="mb-6 border-b border-border pb-5">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex min-w-0 items-center gap-3">
+              <img src={logo.url} alt="Logo Brasa" className="size-11 shrink-0 rounded-full object-cover ring-1 ring-border" />
+              <div className="min-w-0">
+                <p className="text-base font-bold">BRASA</p>
+                <h1 className="mt-1 text-sm font-medium leading-snug text-muted-foreground md:text-base">Quanto custa trazer dólar na Solana hoje</h1>
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="flex items-center justify-end gap-2 text-xs font-bold text-primary">
+                <span className="relative flex size-2.5" aria-hidden="true">
+                  <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
+                  <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
+                </span>
+                {totalUsdc > 0 ? "REAL ON-CHAIN" : "AO VIVO"}
+              </div>
+              <p className="mt-1 text-[11px] text-muted-foreground">atualiza a cada 60s</p>
             </div>
           </div>
-          <div className="flex shrink-0 items-center gap-2 text-xs font-bold text-primary">
-            <span className="relative flex size-2.5" aria-hidden="true">
-              <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
-              <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
-            </span>
-            {volumeUsdc > 0 ? "REAL ON-CHAIN" : "12 CARTEIRAS AO VIVO"}
-          </div>
+          <p className="mt-4 text-xs text-muted-foreground">Referência hoje: {referenceDate()}</p>
         </header>
 
-        <section className="mb-6">
-          <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Resumo de hoje</p>
-          {carregando || !resumo ? (
-            <div className="flex min-h-44 items-center text-sm font-medium text-muted-foreground">
-              Carregando dados reais da blockchain Solana...
-            </div>
+        <section className="rounded-2xl border border-border bg-card p-6 shadow-xl">
+          <p className="mb-6 text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Resumo de hoje</p>
+          {carregando ? (
+            <p className="py-16 text-center text-sm text-muted-foreground">Carregando dados reais da blockchain Solana...</p>
           ) : (
-            <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <MetricCard accent="metric-green-card" detail="Volume convertido na leitura mais recente" icon={DollarSign} label="Volume Total" value={formatBRL(volumeTotal)} />
-              <MetricCard accent="metric-blue-card" detail="Liquidação digital na rede Solana" icon={CircleDollarSign} label="Volume USDC" value={<>{formatUSDC(volumeUsdc)} <span className="text-base font-semibold text-metric-muted">USDC</span></>} />
-              <MetricCard accent="metric-purple-card" detail="PIX convertidos na leitura mais recente" icon={Activity} label="Transações" value={asNumber(resumo.tx_count).toLocaleString("pt-BR")} />
-              <MetricCard accent="metric-orange-card" detail="Cotação usada no índice" icon={BadgeDollarSign} label="Cotação Dólar" value={formatBRL(asNumber(resumo.usd_brl_rate))} />
+            <div>
+              <div className="mb-4 border-b border-border pb-4">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <strong className="text-3xl font-bold md:text-4xl">{formatBRL(totalBrl)}</strong>
+                  {variacao != null && <span className="text-sm font-bold text-primary">{variacao >= 0 ? "↑" : "↓"} {Math.abs(variacao).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}%</span>}
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">{variacao == null ? "Volume hoje" : `${variacao >= 0 ? "↑" : "↓"} ${Math.abs(variacao).toLocaleString("pt-BR", { maximumFractionDigits: 2 })}% hoje`}</p>
+              </div>
+              <div className="mb-4 border-b border-border pb-4">
+                <strong className="text-2xl font-bold md:text-3xl">{formatUSDC(totalUsdc)} <span className="text-base text-muted-foreground">USDC</span></strong>
+                <p className="mt-2 text-sm text-muted-foreground">Volume na Solana</p>
+              </div>
+              <div className="mb-4 border-b border-border pb-4">
+                <div className="flex flex-wrap items-baseline gap-3"><strong className="text-2xl font-bold text-primary md:text-3xl">{formatBRL(economia)}</strong><span className="text-sm font-bold text-primary">3,7%</span></div>
+                <p className="mt-2 text-sm text-muted-foreground">Economia vs bancos</p>
+              </div>
+              <div className="mb-4 border-b border-border pb-4">
+                <strong className="text-2xl font-bold text-highlight md:text-3xl">{(pontos / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil pontos</strong>
+                <p className="mt-2 text-sm text-muted-foreground">Pontos Brasa</p>
+              </div>
+              <div>
+                <strong className="text-2xl font-bold md:text-3xl">{formatBRL(dolar)}</strong>
+                <p className="mt-2 text-sm text-muted-foreground">Dólar de referência: {formatBRL(dolar)}</p>
+              </div>
             </div>
           )}
         </section>
 
-        <section className="relative w-full overflow-hidden rounded-2xl border border-border bg-card/80 p-5 shadow-xl backdrop-blur sm:p-7">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <h1 className="text-xl font-bold">Volume nos últimos 7 dias</h1>
-            {variacaoSeteDias != null && (
-              <div className={`w-fit border px-3 py-2 text-xs font-bold ${variacaoSeteDias >= 0 ? "border-primary/30 bg-primary/10 text-primary" : "border-destructive/30 bg-destructive/10 text-destructive"}`}>
-                {variacaoSeteDias >= 0 ? "↗" : "↘"} Solana {variacaoSeteDias >= 0 ? "crescendo" : "caindo"}{" "}
-                {variacaoSeteDias >= 0 ? "+" : ""}{variacaoSeteDias.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% no Brasil nos últimos 7 dias
-              </div>
-            )}
+        <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-xl md:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold md:text-xl">Volume nos últimos 7 dias</h2>
+            <span className="text-xs text-muted-foreground">{historico.length} {historico.length === 1 ? "dia real" : "dias reais"}</span>
           </div>
-          <div className="mt-5 h-64 sm:h-80">
-            {historico.length ? (
-              <Line data={chartData} options={chartOptions} />
-            ) : (
-              <p className="pt-20 text-center text-sm text-muted-foreground">Base pronta — aguardando primeiro ETL.</p>
-            )}
+          <div className="mt-5 h-[260px] md:h-[300px]">
+            {historico.length ? <Line data={chartData} options={chartOptions} /> : <p className="pt-24 text-center text-sm text-muted-foreground">Base pronta — aguardando primeiro ETL.</p>}
           </div>
         </section>
-
-        <footer className="mx-auto max-w-4xl pt-6 text-center text-xs leading-relaxed text-muted-foreground">
-          Dados V2 on-chain via Helius - Volume de rampas BRL&gt;USDC na Solana
-        </footer>
       </div>
     </main>
   );
