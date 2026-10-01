@@ -182,3 +182,19 @@
   box-shadow: 0 18px 50px -24px color-mix(in oklab, var(--metric-accent) 45%, transparent);
   backdrop-filter: blur(18px);
 }
+
+@utility metric-green-card {
+  --metric-accent: var(--metric-green);
+}
+
+@utility metric-blue-card {
+  --metric-accent: var(--metric-blue);
+}
+
+@utility metric-purple-card {
+  --metric-accent: var(--metric-purple);
+}
+
+@utility metric-orange-card {
+  --metric-accent: var(--metric-orange);
+}

@@ -40,7 +40,7 @@ const formatDate = (value: string) =>
   );
 
 type MetricCardProps = {
-  accent: string;
+  accent: "metric-green-card" | "metric-blue-card" | "metric-purple-card" | "metric-orange-card";
   detail: string;
   icon: typeof DollarSign;
   label: string;
@@ -50,8 +50,7 @@ type MetricCardProps = {
 function MetricCard({ accent, detail, icon: Icon, label, value }: MetricCardProps) {
   return (
     <article
-      className="metric-card min-w-0 p-5 text-metric-foreground transition-all duration-300 hover:scale-[1.02] hover:shadow-xl sm:p-6"
-      style={{ "--metric-accent": `var(${accent})` } as React.CSSProperties}
+      className={`metric-card ${accent} min-w-0 p-5 text-metric-foreground transition-all duration-300 hover:scale-[1.02] hover:shadow-xl sm:p-6`}
     >
       <div className="flex items-start justify-between gap-4">
         <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-[color-mix(in_oklab,var(--metric-accent)_12%,transparent)] text-[var(--metric-accent)]">
@@ -196,8 +195,6 @@ function BrasaAoVivo() {
     },
   }), []);
 
-  const metric = "border-t border-border pt-5 sm:border-l sm:border-t-0 sm:pl-5 sm:pt-0";
-
   return (
     <main className="grid-texture min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[1400px] px-5 py-6 sm:px-8 sm:py-8">
@@ -226,10 +223,10 @@ function BrasaAoVivo() {
             </div>
           ) : (
             <div className="mt-5 grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-4">
-              <MetricCard accent="--metric-green" detail="Volume convertido na leitura mais recente" icon={DollarSign} label="Volume Total" value={formatBRL(volumeTotal)} />
-              <MetricCard accent="--metric-blue" detail="Liquidação digital na rede Solana" icon={CircleDollarSign} label="Volume USDC" value={<>{formatUSDC(volumeUsdc)} <span className="text-base font-semibold text-metric-muted">USDC</span></>} />
-              <MetricCard accent="--metric-purple" detail="PIX convertidos na leitura mais recente" icon={Activity} label="Transações" value={asNumber(resumo.tx_count).toLocaleString("pt-BR")} />
-              <MetricCard accent="--metric-orange" detail="Cotação usada no índice" icon={BadgeDollarSign} label="Cotação Dólar" value={formatBRL(asNumber(resumo.usd_brl_rate))} />
+              <MetricCard accent="metric-green-card" detail="Volume convertido na leitura mais recente" icon={DollarSign} label="Volume Total" value={formatBRL(volumeTotal)} />
+              <MetricCard accent="metric-blue-card" detail="Liquidação digital na rede Solana" icon={CircleDollarSign} label="Volume USDC" value={<>{formatUSDC(volumeUsdc)} <span className="text-base font-semibold text-metric-muted">USDC</span></>} />
+              <MetricCard accent="metric-purple-card" detail="PIX convertidos na leitura mais recente" icon={Activity} label="Transações" value={asNumber(resumo.tx_count).toLocaleString("pt-BR")} />
+              <MetricCard accent="metric-orange-card" detail="Cotação usada no índice" icon={BadgeDollarSign} label="Cotação Dólar" value={formatBRL(asNumber(resumo.usd_brl_rate))} />
             </div>
           )}
         </section>
