@@ -28,9 +28,8 @@ type DailyVolume = {
   date: string;
   total_brl: number | string | null;
   total_usdc: number | string | null;
-  economia_vs_banco?: number | string | null;
-  economy_brl: number | string | null;
   tx_count: number | string | null;
+  usd_brl_rate: number | string | null;
 };
 
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
@@ -74,7 +73,7 @@ function BrasaAoVivo() {
           .select("*")
           .order("date", { ascending: false })
           .limit(1)
-          .maybeSingle<DailyVolume>(),
+          .single<DailyVolume>(),
         supabase
           .from("daily_volumes")
           .select("*")
@@ -88,18 +87,22 @@ function BrasaAoVivo() {
       if (latestResult.error || historyResult.error) {
         console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error);
         setResumo(null);
-        setHistorico([]);
+        if (historyResult.error) setHistorico([]);
       } else {
-        setResumo(latestResult.data ?? null);
+        setResumo(latestResult.data);
         setHistorico([...(historyResult.data ?? [])].reverse());
       }
       setCarregando(false);
     }
 
     void fetchDashboard();
+    const refreshInterval = window.setInterval(() => {
+      void fetchDashboard();
+    }, 60_000);
 
     return () => {
       active = false;
+      window.clearInterval(refreshInterval);
     };
   }, []);
 
@@ -112,8 +115,7 @@ function BrasaAoVivo() {
   }, [historico]);
 
   const volumeTotal = asNumber(resumo?.total_brl);
-  const economiaTotal = asNumber(resumo?.economia_vs_banco);
-  const percentualEconomizado = volumeTotal > 0 ? (economiaTotal / volumeTotal) * 100 : 0;
+  const volumeUsdc = asNumber(resumo?.total_usdc);
 
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: historico.map((item) => formatDate(item.date)),
@@ -181,15 +183,15 @@ function BrasaAoVivo() {
               <span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" />
               <span className="relative inline-flex size-2.5 rounded-full bg-primary" />
             </span>
-            12 CARTEIRAS AO VIVO
+            {volumeUsdc > 0 ? "REAL ON-CHAIN" : "12 CARTEIRAS AO VIVO"}
           </div>
         </header>
 
         <section className="mb-4 border-y border-border bg-card/80 py-6 sm:px-6">
           <p className="text-xs font-bold uppercase tracking-[0.14em] text-muted-foreground">Resumo de hoje</p>
-          {carregando ? (
+          {carregando || !resumo ? (
             <div className="flex min-h-32 items-center text-sm font-medium text-muted-foreground">
-              Carregando dados on-chain...
+              Carregando dados reais da blockchain...
             </div>
           ) : (
             <div className="mt-5 grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
@@ -200,7 +202,7 @@ function BrasaAoVivo() {
               <div className={metric}>
                 <p className="text-xs font-semibold text-muted-foreground">Volume USDC</p>
                 <p className="mt-2 text-2xl font-bold tabular-nums text-highlight">
-                  {formatUSDC(asNumber(resumo?.total_usdc))} <span className="text-sm text-muted-foreground">USDC</span>
+                   {formatUSDC(volumeUsdc)} <span className="text-sm text-muted-foreground">USDC</span>
                 </p>
               </div>
               <div className={metric}>
@@ -211,11 +213,11 @@ function BrasaAoVivo() {
                 <p className="mt-1 text-xs text-muted-foreground">PIX convertidos hoje</p>
               </div>
               <div className={metric}>
-                <p className="text-xs font-semibold text-muted-foreground">Economia vs Banco</p>
-                <p className="mt-2 text-2xl font-bold tabular-nums text-primary">{formatBRL(economiaTotal)}</p>
-                <span className="mt-2 inline-flex border border-primary/30 bg-primary/10 px-2 py-1 text-[11px] font-semibold text-primary">
-                  ({percentualEconomizado.toFixed(1)}% vs bancos)
-                </span>
+                <p className="text-xs font-semibold text-muted-foreground">Dólar</p>
+                <p className="mt-2 text-2xl font-bold tabular-nums text-primary">
+                  {formatBRL(asNumber(resumo?.usd_brl_rate))}
+                </p>
+                <p className="mt-1 text-xs text-muted-foreground">Cotação usada no índice</p>
               </div>
             </div>
           )}

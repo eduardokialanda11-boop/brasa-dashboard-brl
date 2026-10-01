@@ -9,3 +9,4 @@
 - [x] Estado de sincronização sem valores simulados
 - [x] Resumo, transações e tendência semanal alimentados exclusivamente por `daily_volumes`
 - [x] Resumo alimentado pelo registro mais recente de `daily_volumes`, com zeros quando a tabela está vazia
+- [x] Atualização automática a cada 60 segundos exclusivamente por nova leitura de `daily_volumes`
