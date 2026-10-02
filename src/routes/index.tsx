@@ -31,6 +31,12 @@ type DailyVolume = {
   usd_brl_rate: number | string | null;
 };
 
+type TransactionDay = {
+  count: number;
+  totalBrl: number;
+  totalUsdc: number;
+};
+
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${value}T12:00:00`));
@@ -76,6 +82,7 @@ function BrasaAoVivo() {
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
   const [atualizadoEmCompleto, setAtualizadoEmCompleto] = useState<Date | null>(null);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
+  const [transactionDays, setTransactionDays] = useState<Map<string, TransactionDay>>(new Map());
   const [provasAbertas, setProvasAbertas] = useState(false);
   const [provasCarregando, setProvasCarregando] = useState(true);
   const [provasErro, setProvasErro] = useState(false);
@@ -87,7 +94,7 @@ function BrasaAoVivo() {
       const [latestResult, historyResult, transactionResult] = await Promise.all([
         supabase.from("daily_volumes").select("*").or("total_usdc.gt.0,tx_count.gt.0").order("date", { ascending: false }).limit(1).maybeSingle<DailyVolume>(),
         supabase.from("daily_volumes").select("*").order("date", { ascending: false }).limit(7).returns<DailyVolume[]>(),
-        supabase.from("transactions").select("*").order("timestamp", { ascending: false }).limit(3),
+        supabase.from("transactions").select("*").order("timestamp", { ascending: false }),
       ]);
 
       if (!active) return;
@@ -106,7 +113,21 @@ function BrasaAoVivo() {
         }).format(now));
         setAtualizadoEmCompleto(now);
       }
-      setTransactions((transactionResult.data ?? []) as TransactionRow[]);
+      const transactionRows = (transactionResult.data ?? []) as TransactionRow[];
+      const days = new Map<string, TransactionDay>();
+      transactionRows.forEach((row) => {
+        const timestamp = typeof row["timestamp"] === "string" ? row["timestamp"] : "";
+        const date = timestamp.slice(0, 10);
+        if (!date) return;
+        const current = days.get(date) ?? { count: 0, totalBrl: 0, totalUsdc: 0 };
+        days.set(date, {
+          count: current.count + 1,
+          totalBrl: current.totalBrl + asNumber(row["amount_brl"] as number | string | null),
+          totalUsdc: current.totalUsdc + asNumber(row["amount_usdc"] as number | string | null),
+        });
+      });
+      setTransactionDays(days);
+      setTransactions(transactionRows.slice(0, 3));
       setProvasErro(Boolean(transactionResult.error));
       setProvasCarregando(false);
       setCarregando(false);
@@ -145,12 +166,18 @@ function BrasaAoVivo() {
       }).format(new Date(atualizadoEmCompleto.getTime() + 60_000))
     : "—";
 
+  const transactionDates = useMemo(() => [...transactionDays.keys()].sort(), [transactionDays]);
   const variacao = useMemo(() => {
-    if (historico.length < 2) return null;
-    const anterior = asNumber(historico[historico.length - 2]?.total_brl);
-    if (anterior <= 0) return null;
-    return ((totalBrl - anterior) / anterior) * 100;
-  }, [historico, totalBrl]);
+    if (transactionDates.length < 3) return null;
+    const today = transactionDates[transactionDates.length - 1];
+    const yesterday = transactionDates[transactionDates.length - 2];
+    if (!today || !yesterday) return null;
+    const previousTotal = transactionDays.get(yesterday)?.totalBrl ?? 0;
+    const currentTotal = transactionDays.get(today)?.totalBrl ?? 0;
+    if (previousTotal <= 0) return null;
+    return ((currentTotal - previousTotal) / previousTotal) * 100;
+  }, [transactionDates, transactionDays]);
+  const inicioDaColeta = transactionDates.length < 3;
   const variacaoForaDaFaixa = variacao != null && (variacao < -50 || variacao > 200);
 
   const semana = useMemo(() => {
@@ -237,7 +264,9 @@ function BrasaAoVivo() {
           label: (context) => {
             const registro = semana[context.dataIndex]?.registro;
             if (!registro) return "Aguardando coleta";
-            return `Volume: ${formatBRLWhole(asNumber(registro.total_brl))} (${formatUSDC(asNumber(registro.total_usdc))} USDC)`;
+            const transactionDay = transactionDays.get(registro.date);
+            const usdc = asNumber(registro.total_usdc) || transactionDay?.totalUsdc || 0;
+            return `${formatBRL(asNumber(registro.total_brl))} (${formatUSDC(usdc)} USDC)`;
           },
         },
       },
@@ -264,7 +293,7 @@ function BrasaAoVivo() {
         ticks: { color: "#8fb09c", callback: (value) => formatBRLCompact(Number(value)) },
       },
     },
-  }), [chartMaximum, semana]);
+  }), [chartMaximum, semana, transactionDays]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
@@ -298,7 +327,9 @@ function BrasaAoVivo() {
               <div className="py-3">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <strong className="text-2xl font-bold lg:text-3xl">{formatBRL(totalBrl)}</strong>
-                  {variacaoForaDaFaixa ? (
+                  {inicioDaColeta ? (
+                    <span className="rounded-full bg-highlight/15 px-2.5 py-1 text-[11px] font-semibold text-highlight">Novo</span>
+                  ) : variacaoForaDaFaixa ? (
                     <span className="rounded-full bg-muted px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">Novo período real</span>
                   ) : variacao != null ? (
                     <span className={`text-xs font-bold ${variacao >= 0 ? "text-primary" : "text-destructive"}`}>
@@ -307,7 +338,7 @@ function BrasaAoVivo() {
                   ) : null}
                 </div>
                 <p className={`mt-1.5 text-[11px] lg:text-sm ${variacao == null ? "text-highlight" : "text-muted-foreground"}`}>
-                  {variacao == null ? "• Primeiro dia real" : variacaoForaDaFaixa ? "Volume hoje" : "Volume hoje"}
+                  {inicioDaColeta ? "• Início da coleta real" : variacao == null ? "• Primeiro dia real" : "Volume hoje"}
                 </p>
               </div>
               <div className="py-3">
@@ -358,7 +389,9 @@ function BrasaAoVivo() {
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-xl md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold md:text-xl">Volume nos últimos 7 dias</h2>
-            {insight?.crescimento != null ? (
+            {inicioDaColeta ? (
+              <span className="rounded-full bg-highlight/15 px-2.5 py-1 text-xs font-semibold text-highlight">Início da coleta real</span>
+            ) : insight?.crescimento != null ? (
               <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${insight.crescimento >= 0 ? "bg-primary/10 text-primary" : "bg-accent text-highlight"}`}>
                 {insight.crescimento >= 0 ? `📈 Solana crescendo +${insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% no Brasil` : `📉 Em correção ${insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
               </span>
@@ -373,7 +406,9 @@ function BrasaAoVivo() {
           </div>
           {insight && (
             <div className="mt-4 rounded-lg bg-secondary p-3 text-xs leading-relaxed md:text-sm">
-              {insight.crescimento == null ? (
+              {inicioDaColeta ? (
+                <p className="text-foreground">{transacoes.toLocaleString("pt-BR")} transações PIX-USDC detectadas na Solana no Brasil. Volte em 7 dias para ver tendência de crescimento.</p>
+              ) : insight.crescimento == null ? (
                 <p className="text-foreground">
                   <span aria-hidden="true">🌱</span> Início da coleta real — {transacoes.toLocaleString("pt-BR")} transações PIX→USDC detectadas na Solana no Brasil. Volte em 7 dias para ver tendência de crescimento.
                 </p>

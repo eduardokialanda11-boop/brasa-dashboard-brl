@@ -15,3 +15,4 @@
 - Refresh the dashboard every 60 seconds only by reading `daily_volumes`; derived summary metrics may calculate from real rows, but timers and charts must never simulate source values.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
 - Treat `transactions` as a read-only proof source, always show its three latest real rows regardless of date, and never substitute demo signatures when no verifiable rows exist; proof claims must remain auditable.
+- Calculate daily growth from real `transactions` grouped by the UTC date in `timestamp`; with fewer than three collected dates, label the dashboard as the start of real collection instead of showing a percentage.
