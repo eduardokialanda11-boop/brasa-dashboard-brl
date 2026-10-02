@@ -84,9 +84,10 @@ function BrasaAoVivo() {
     let active = true;
 
     async function fetchDashboard() {
-      const [latestResult, historyResult] = await Promise.all([
-        supabase.from("daily_volumes").select("*").order("date", { ascending: false }).limit(1).maybeSingle<DailyVolume>(),
+      const [latestResult, historyResult, transactionResult] = await Promise.all([
+        supabase.from("daily_volumes").select("*").or("total_usdc.gt.0,tx_count.gt.0").order("date", { ascending: false }).limit(1).maybeSingle<DailyVolume>(),
         supabase.from("daily_volumes").select("*").order("date", { ascending: false }).limit(7).returns<DailyVolume[]>(),
+        supabase.from("transactions").select("*").order("timestamp", { ascending: false }).limit(3),
       ]);
 
       if (!active) return;
@@ -105,19 +106,9 @@ function BrasaAoVivo() {
         }).format(now));
         setAtualizadoEmCompleto(now);
       }
-      const latestDate = latestResult.data?.date;
-      if (latestDate) {
-        setProvasCarregando(true);
-        const transactionResult = await supabase.from("transactions").select("*").eq("date", latestDate);
-        if (!active) return;
-        setTransactions((transactionResult.data ?? []) as TransactionRow[]);
-        setProvasErro(Boolean(transactionResult.error));
-        setProvasCarregando(false);
-      } else {
-        setTransactions([]);
-        setProvasErro(false);
-        setProvasCarregando(false);
-      }
+      setTransactions((transactionResult.data ?? []) as TransactionRow[]);
+      setProvasErro(Boolean(transactionResult.error));
+      setProvasCarregando(false);
       setCarregando(false);
     }
 
@@ -293,7 +284,7 @@ function BrasaAoVivo() {
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <p>Referência hoje: {referenceDate()}</p>
+            <p>{resumo?.date ? `Último dado verificado em: ${formatDate(resumo.date)}` : `Referência hoje: ${referenceDate()}`}</p>
             {atualizadoEm && <p className="shrink-0">Atualizado às {atualizadoEm}</p>}
           </div>
         </header>

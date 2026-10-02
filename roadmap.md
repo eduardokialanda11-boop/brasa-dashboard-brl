@@ -15,3 +15,4 @@
 - [x] Header simplificado, horário da última leitura exibido e variações anormais tratadas como novo período real
 - [x] Gráfico semanal com calendário de 7 dias, estados aguardando coleta, tooltip único e insight Solana no Brasil
 - [x] Modal de provas on-chain com hashes reais, metodologia e indicadores de confiabilidade
+- [x] Resumo preserva o último dia verificado e provas exibem as três transações reais mais recentes sem filtro de data
