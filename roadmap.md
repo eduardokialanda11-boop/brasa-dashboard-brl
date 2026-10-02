@@ -16,3 +16,4 @@
 - [x] Gráfico semanal com calendário de 7 dias, estados aguardando coleta, tooltip único e insight Solana no Brasil
 - [x] Modal de provas on-chain com hashes reais, metodologia e indicadores de confiabilidade
 - [x] Resumo preserva o último dia verificado e provas exibem as três transações reais mais recentes sem filtro de data
+- [x] Crescimento diário calculado por `transactions.timestamp`, com estado inicial abaixo de três dias e USDC real no tooltip
