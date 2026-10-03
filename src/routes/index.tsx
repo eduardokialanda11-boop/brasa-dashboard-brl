@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+8import { createFileRoute } from "@tanstack/react-router";
 import {
   CategoryScale,
   Chart as ChartJS,
@@ -202,3 +202,42 @@ function BrasaAoVivo() {
           )}
         </section>
         </div>
+        <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6 md:col-span-2 mt-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold lg:text-xl">Solana está crescendo no Brasil?</h2>
+            {insight?.tendenciaAlta? (<span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Tendência de alta</span>) : (<span className="rounded-full bg-highlight/10 px-2.5 py-1 text-xs font-semibold text-highlight">Histórico ({historico.length}/7 dias reais)</span>)}
+          </div>
+          <div className="mt-4"><div className="mb-1.5 flex justify-between text-[11px] text-muted-foreground"><span>Coleta: {historico.length}/7 dias</span><span>{chartProgress}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${chartProgress}%` }} /></div></div>
+          <div className="mt-4 flex h-[200px] items-center justify-center lg:h-[320px]">
+            {historico.length > 0? (<Line data={chartData} options={chartOptions} />) : (<p className="text-sm text-muted-foreground">Base pronta - aguardando primeiro ETL...</p>)}
+          </div>
+          {insight && (
+            <div className="mt-4 rounded-lg bg-secondary p-3 text-xs leading-relaxed md:text-sm">
+              <p className="text-foreground">Média 7 dias: <strong className="text-foreground">{formatBRLWhole(insight.media)}</strong> | Melhor dia: {insight.picoData? formatDate(insight.picoData) : "-"} com <strong className="text-foreground">{formatBRLCompact(insight.pico)}</strong></p>
+              {historico.length < 6 && (<p className="mt-2 text-muted-foreground">A tendência será calculada após seis dias reais de coleta.</p>)}
+            </div>
+          )}
+        </section>
+
+        <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6 md:col-span-2 mt-6">
+          <h2 className="text-lg font-bold lg:text-xl">Como funciona</h2>
+          <div className="mt-4 grid gap-5 md:grid-cols-3 md:divide-x md:divide-border">
+            <article className="md:pr-5">
+              <h3 className="font-semibold">👛 Carteiras monitoradas</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">12 gateways PIX – USDC monitorados continuamente, 24 horas por dia. Cada carteira é verificada no Solscan.</p>
+            </article>
+            <article className="md:px-5">
+              <h3 className="font-semibold">🔍 Detecção</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Transferências USDC acima de $5 associadas a PIX contam como conversão. Hash único evita duplicidade. Fonte: Solana RPC + Supabase Realtime.</p>
+            </article>
+            <article className="md:pl-5">
+              <h3 className="font-semibold">💰 Economia estimada</h3>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Spread médio bancário de 3,7% + IOF vs taxa Solana de R$0,01. Cálculo: {formatBRL(economiaTotalHistorica)} economizados no total. Valor auditável e conservador.</p>
+            </article>
+          </div>
+        </section>
+      </div>
+      <OnchainProofsDialog open={provasAbertas} onOpenChange={setProvasAbertas} rows={transactions} transactionCount={transacoes} loading={provasCarregando} error={provasErro} />
+    </main>
+  );
+}
