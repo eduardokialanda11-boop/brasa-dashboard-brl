@@ -90,7 +90,11 @@ function BrasaAoVivo() {
           .order("date", { ascending: true })
           .limit(7)
           .returns<DailyVolume[]>(),
-        supabase.from("transactions").select("*").order("timestamp", { ascending: false }).limit(3),
+        supabase
+          .from("pix_onchain_events")
+          .select("signature, gateway_wallet, amount_usdc, amount_brl, block_time")
+          .order("block_time", { ascending: false })
+          .limit(50),
       ]);
 
       if (!active) return;
@@ -399,7 +403,7 @@ function BrasaAoVivo() {
           </div>
         </section>
       </div>
-      <OnchainProofsDialog open={provasAbertas} onOpenChange={setProvasAbertas} rows={transactions} loading={provasCarregando} error={provasErro} />
+      <OnchainProofsDialog open={provasAbertas} onOpenChange={setProvasAbertas} rows={transactions} transactionCount={transacoes} loading={provasCarregando} error={provasErro} />
     </main>
   );
 }
