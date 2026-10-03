@@ -146,9 +146,19 @@ function BrasaAoVivo() {
 
     void fetchDashboard();
     const refreshInterval = window.setInterval(() => void fetchDashboard(), 60_000);
+    const realtimeChannel = supabase
+      .channel("pix-onchain")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "pix_onchain_events" },
+        () => void fetchDashboard(),
+      )
+      .subscribe();
+
     return () => {
       active = false;
       window.clearInterval(refreshInterval);
+      void supabase.removeChannel(realtimeChannel);
     };
   }, []);
 
