@@ -60,6 +60,8 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-proof: var(--proof);
+  --color-proof-foreground: var(--proof-foreground);
   --color-sidebar: var(--sidebar);
   --color-sidebar-foreground: var(--sidebar-foreground);
   --color-sidebar-primary: var(--sidebar-primary);
@@ -79,6 +81,8 @@
   --popover: oklch(0.27646 0.0385 164.37);
   --popover-foreground: oklch(0.985 0 0);
   --primary: oklch(0.72275 0.19201 149.58);
+  --proof: oklch(0.623 0.214 259.8);
+  --proof-foreground: oklch(0.985 0.002 247.8);
   --highlight: oklch(0.86056 0.17311 91.94);
   --metric-surface: oklch(0.99 0.004 145 / 82%);
   --metric-foreground: oklch(0.2 0.025 155);
