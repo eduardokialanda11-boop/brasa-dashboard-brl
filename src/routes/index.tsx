@@ -132,7 +132,8 @@ function BrasaAoVivo() {
   const totalBrl = asNumber(resumo?.total_brl);
   const totalUsdc = asNumber(resumo?.total_usdc);
   const transacoes = asNumber(resumo?.tx_count);
-  const dolar = asNumber(resumo?.usd_brl_rate);
+  const dolarInformado = asNumber(resumo?.usd_brl_rate);
+  const dolar = dolarInformado > 0 ? dolarInformado : totalUsdc > 0 ? totalBrl / totalUsdc : null;
   const economia = totalBrl * 0.037;
   const pontos = totalBrl / 100;
   const syncDateTime = atualizadoEmCompleto
@@ -332,8 +333,8 @@ function BrasaAoVivo() {
                 <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Pontos Brasa</p>
               </div>
               <div className="pt-3">
-                <strong className="text-2xl font-bold lg:text-3xl">{formatBRL(dolar)}</strong>
-                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Dólar de referência: {formatBRL(dolar)}</p>
+                <strong className="text-2xl font-bold lg:text-3xl">{dolar == null ? "—" : formatBRL(dolar)}</strong>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">PTAX calculado on-chain</p>
               </div>
               <div className="mt-3 border-t border-border pt-3 text-[10px] leading-relaxed text-muted-foreground">
                 Última sync: {syncDateTime} UTC-3 <span aria-hidden="true">|</span> Próxima: {nextSync} <span aria-hidden="true">|</span> Status: <span className="text-primary">● Coletando</span> <span aria-hidden="true">|</span> Carteiras: 12 monitoradas
