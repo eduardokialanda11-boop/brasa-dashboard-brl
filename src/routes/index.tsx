@@ -265,6 +265,9 @@ function BrasaAoVivo() {
               REAL ON-CHAIN
             </div>
           </div>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">
+            O BRASA monitora em tempo real quanto de Real (PIX) virou USDC na Solana hoje. Dados 100% on-chain, auditáveis no Solscan.
+          </p>
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
             <p>{resumo?.date ? `Último dado verificado em: ${formatDate(resumo.date)}` : `Referência hoje: ${referenceDate()}`}</p>
             {atualizadoEm && <p className="shrink-0">Atualizado às {atualizadoEm}</p>}
@@ -290,13 +293,13 @@ function BrasaAoVivo() {
                     </span>
                   ) : null}
                 </div>
-                <p className={`mt-1.5 text-[11px] lg:text-sm ${variacao == null ? "text-highlight" : "text-muted-foreground"}`}>
-                  {inicioDaColeta ? "• Início da coleta real" : variacao == null ? "• Primeiro dia real" : "Volume hoje"}
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
+                  em PIX convertido para USDC na Solana hoje{resumo?.date ? ` (${formatDate(resumo.date)})` : ""}
                 </p>
               </div>
               <div className="py-3">
                 <strong className="text-2xl font-bold lg:text-3xl">{formatUSDC(totalUsdc)} <span className="text-sm text-muted-foreground lg:text-base">USDC</span></strong>
-                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Volume na Solana</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">recebidos on-chain nas carteiras dos gateways</p>
               </div>
               <div className="py-3">
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -308,7 +311,7 @@ function BrasaAoVivo() {
                   </div>
                   <Button variant="outline" size="sm" onClick={() => setProvasAbertas(true)}><Search aria-hidden="true" /> Ver provas</Button>
                 </div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">PIX convertidos na leitura mais recente</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">PIX de brasileiros virando dólar digital na Solana</p>
               </div>
               <div className="py-3">
                 <div className="flex flex-wrap items-baseline gap-3"><strong className="text-2xl font-bold text-primary lg:text-3xl">{formatBRL(economia)}</strong><span className="text-sm font-bold text-primary">3,7%</span></div>
