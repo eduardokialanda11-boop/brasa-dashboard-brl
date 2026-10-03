@@ -22,3 +22,4 @@
 - [x] Modal auditável com 50 eventos reais de `pix_onchain_events`, links Solscan, CSV completo e cópia de assinaturas
 - [x] Resumo separado por data selecionável e acumulado histórico real de `daily_volumes`
 - [x] Card semanal com crescimento diário, média, melhor dia e tendência calculados com dados reais
+- [x] Provas antigas consolidadas por carteira gateway, com auditoria no Solscan e CSV agregado
