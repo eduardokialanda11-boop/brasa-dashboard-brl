@@ -92,8 +92,19 @@ function BrasaAoVivo() {
 
     async function fetchDashboard() {
       const [latestResult, historyResult, transactionResult] = await Promise.all([
-        supabase.from("daily_volumes").select("*").or("total_usdc.gt.0,tx_count.gt.0").order("date", { ascending: false }).limit(1).maybeSingle<DailyVolume>(),
-        supabase.from("daily_volumes").select("*").order("date", { ascending: false }).limit(7).returns<DailyVolume[]>(),
+        supabase
+          .from("daily_volumes")
+          .select("date, total_brl, total_usdc, tx_count, usd_brl_rate")
+          .or("total_usdc.gt.0,tx_count.gt.0")
+          .order("date", { ascending: false })
+          .limit(1)
+          .maybeSingle<DailyVolume>(),
+        supabase
+          .from("daily_volumes")
+          .select("date, total_brl, total_usdc, tx_count, usd_brl_rate")
+          .order("date", { ascending: false })
+          .limit(7)
+          .returns<DailyVolume[]>(),
         supabase.from("transactions").select("*").order("timestamp", { ascending: false }),
       ]);
 
