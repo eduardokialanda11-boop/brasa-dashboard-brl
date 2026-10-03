@@ -17,4 +17,5 @@
 - [x] Modal de provas on-chain com hashes reais, metodologia e indicadores de confiabilidade
 - [x] Resumo preserva o último dia verificado e provas exibem as três transações reais mais recentes sem filtro de data
 - [x] Crescimento diário calculado por `transactions.timestamp`, com estado inicial abaixo de três dias e USDC real no tooltip
-- [x] Atualização imediata após novas transações em `pix_onchain_events`, com releitura dos totais verificados
+- [x] Resumo pela linha da data atual e gráfico somente com datas reais de `daily_volumes`, sem preenchimento futuro
+- [x] Atualização ao vivo acionada por mudanças na própria `daily_volumes`, sem uso de `pix_onchain_events`
