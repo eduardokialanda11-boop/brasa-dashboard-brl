@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
-import { formatBRL, formatUSDC } from "@/utils/format";
+import { formatUSDC } from "@/utils/format";
 
 export type TransactionRow = Record<string, unknown>;
 
