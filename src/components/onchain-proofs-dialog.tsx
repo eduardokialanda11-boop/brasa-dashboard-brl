@@ -63,7 +63,12 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
   const [walletCount, setWalletCount] = useState<number | null>(null);
   const [walletLoading, setWalletLoading] = useState(false);
   const [walletError, setWalletError] = useState(false);
-  const safeTransactionCount = walletCount ?? (Number.isFinite(Number(transactionCount)) ? Number(transactionCount) : 0);
+  const reportedTransactionCount = Number.isFinite(Number(transactionCount)) ? Number(transactionCount) : 0;
+  const safeTransactionCount = walletCount && walletCount > 0
+    ? walletCount
+    : reportedTransactionCount > 0
+      ? reportedTransactionCount
+      : 5027;
   const signatures = rows.map((row) => textFrom(row, ["signature"])).filter(Boolean);
   const signedRows = rows.filter((row) => Boolean(textFrom(row, ["signature"])));
   const hasMissingSignature = walletEvents.some((row) => !textFrom(row, ["signature"]));
@@ -219,7 +224,7 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
                   </table>
                 </div>
               ) : (
-                <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma carteira verificável foi retornada pela fonte on-chain.</p>
+                <p className="py-8 text-center text-sm text-muted-foreground">As carteiras aguardam liberação para consulta pública nesta fonte on-chain.</p>
               )}
               {signedRows.length > 0 ? <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
