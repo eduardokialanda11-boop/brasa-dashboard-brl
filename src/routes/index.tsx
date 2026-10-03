@@ -31,12 +31,6 @@ type DailyVolume = {
   usd_brl_rate: number | string | null;
 };
 
-type TransactionDay = {
-  count: number;
-  totalBrl: number;
-  totalUsdc: number;
-};
-
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${value}T12:00:00`));
@@ -47,12 +41,13 @@ const formatWeekday = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase();
-const toDateKey = (date: Date) => date.toISOString().slice(0, 10);
-const addDays = (value: string, amount: number) => {
-  const date = new Date(`${value}T12:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + amount);
-  return toDateKey(date);
-};
+const todayInSaoPaulo = () =>
+  new Intl.DateTimeFormat("en-CA", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    timeZone: "America/Sao_Paulo",
+  }).format(new Date());
 
 const referenceDate = () =>
   new Intl.DateTimeFormat("pt-BR", {
@@ -82,7 +77,6 @@ function BrasaAoVivo() {
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
   const [atualizadoEmCompleto, setAtualizadoEmCompleto] = useState<Date | null>(null);
   const [transactions, setTransactions] = useState<TransactionRow[]>([]);
-  const [transactionDays, setTransactionDays] = useState<Map<string, TransactionDay>>(new Map());
   const [provasAbertas, setProvasAbertas] = useState(false);
   const [provasCarregando, setProvasCarregando] = useState(true);
   const [provasErro, setProvasErro] = useState(false);
@@ -91,54 +85,34 @@ function BrasaAoVivo() {
     let active = true;
 
     async function fetchDashboard() {
-      const [latestResult, historyResult, transactionResult] = await Promise.all([
+      const [todayResult, historyResult, transactionResult] = await Promise.all([
         supabase
           .from("daily_volumes")
           .select("date, total_brl, total_usdc, tx_count, usd_brl_rate")
-          .or("total_usdc.gt.0,tx_count.gt.0")
-          .order("date", { ascending: false })
-          .limit(1)
+          .eq("date", todayInSaoPaulo())
           .maybeSingle<DailyVolume>(),
         supabase
           .from("daily_volumes")
           .select("date, total_brl, total_usdc, tx_count, usd_brl_rate")
-          .order("date", { ascending: false })
+          .order("date", { ascending: true })
           .limit(7)
           .returns<DailyVolume[]>(),
-        supabase.from("transactions").select("*").order("timestamp", { ascending: false }),
+        supabase.from("transactions").select("*").order("timestamp", { ascending: false }).limit(3),
       ]);
 
       if (!active) return;
-      if (latestResult.error || historyResult.error) {
-        console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error);
+      if (todayResult.error || historyResult.error) {
+        console.warn("Não foi possível carregar daily_volumes:", todayResult.error ?? historyResult.error);
       }
-      setResumo(latestResult.data ?? null);
-      setHistorico([...(historyResult.data ?? [])].reverse());
-      if (!latestResult.error && !historyResult.error) {
+      setResumo(todayResult.data ?? null);
+      setHistorico(historyResult.data ?? []);
+      if (!todayResult.error && !historyResult.error) {
         const now = new Date();
-        setAtualizadoEm(new Intl.DateTimeFormat("pt-BR", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: false,
-          timeZone: "America/Sao_Paulo",
-        }).format(now));
+        setAtualizadoEm(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" }));
         setAtualizadoEmCompleto(now);
       }
       const transactionRows = (transactionResult.data ?? []) as TransactionRow[];
-      const days = new Map<string, TransactionDay>();
-      transactionRows.forEach((row) => {
-        const timestamp = typeof row["timestamp"] === "string" ? row["timestamp"] : "";
-        const date = timestamp.slice(0, 10);
-        if (!date) return;
-        const current = days.get(date) ?? { count: 0, totalBrl: 0, totalUsdc: 0 };
-        days.set(date, {
-          count: current.count + 1,
-          totalBrl: current.totalBrl + asNumber(row["amount_brl"] as number | string | null),
-          totalUsdc: current.totalUsdc + asNumber(row["amount_usdc"] as number | string | null),
-        });
-      });
-      setTransactionDays(days);
-      setTransactions(transactionRows.slice(0, 3));
+      setTransactions(transactionRows);
       setProvasErro(Boolean(transactionResult.error));
       setProvasCarregando(false);
       setCarregando(false);
@@ -147,10 +121,10 @@ function BrasaAoVivo() {
     void fetchDashboard();
     const refreshInterval = window.setInterval(() => void fetchDashboard(), 60_000);
     const realtimeChannel = supabase
-      .channel("pix-onchain")
+      .channel("daily-volumes-live")
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "pix_onchain_events" },
+        { event: "*", schema: "public", table: "daily_volumes" },
         () => void fetchDashboard(),
       )
       .subscribe();
@@ -187,30 +161,17 @@ function BrasaAoVivo() {
       }).format(new Date(atualizadoEmCompleto.getTime() + 60_000))
     : "—";
 
-  const transactionDates = useMemo(() => [...transactionDays.keys()].sort(), [transactionDays]);
   const variacao = useMemo(() => {
-    if (transactionDates.length < 3) return null;
-    const today = transactionDates[transactionDates.length - 1];
-    const yesterday = transactionDates[transactionDates.length - 2];
-    if (!today || !yesterday) return null;
-    const previousTotal = transactionDays.get(yesterday)?.totalBrl ?? 0;
-    const currentTotal = transactionDays.get(today)?.totalBrl ?? 0;
+    if (historico.length < 2) return null;
+    const previousTotal = asNumber(historico[historico.length - 2]?.total_brl);
+    const currentTotal = asNumber(historico[historico.length - 1]?.total_brl);
     if (previousTotal <= 0) return null;
     return ((currentTotal - previousTotal) / previousTotal) * 100;
-  }, [transactionDates, transactionDays]);
-  const inicioDaColeta = transactionDates.length < 3;
+  }, [historico]);
+  const inicioDaColeta = historico.length < 3;
   const variacaoForaDaFaixa = variacao != null && (variacao < -50 || variacao > 200);
 
-  const semana = useMemo(() => {
-    if (!historico.length) return [];
-    const registros = new Map(historico.map((item) => [item.date, item]));
-    const inicio = historico[0]?.date;
-    if (!inicio) return [];
-    return Array.from({ length: 7 }, (_, index) => {
-      const date = addDays(inicio, index);
-      return { date, registro: registros.get(date) ?? null };
-    });
-  }, [historico]);
+  const semana = useMemo(() => historico.map((registro) => ({ date: registro.date, registro })), [historico]);
 
   const insight = useMemo(() => {
     if (!historico.length) return null;
@@ -233,7 +194,7 @@ function BrasaAoVivo() {
     datasets: [
       {
         label: "Volume",
-        data: semana.map((item) => item.registro ? asNumber(item.registro.total_brl) : null),
+        data: semana.map((item) => asNumber(item.registro.total_brl)),
         borderColor: "#22c55e",
         backgroundColor: "rgba(34,197,94,.10)",
         borderWidth: 3,
@@ -244,24 +205,6 @@ function BrasaAoVivo() {
         spanGaps: false,
         fill: true,
         tension: 0.32,
-      },
-      {
-        label: "Aguardando coleta",
-        data: semana.map((item, index) => {
-          if (!item.registro) return 0;
-          const nextItem = semana[index + 1];
-          return nextItem && !nextItem.registro ? asNumber(item.registro.total_brl) : null;
-        }),
-        borderColor: "#64748b",
-        backgroundColor: "transparent",
-        borderWidth: 2,
-        borderDash: [7, 6],
-        pointBackgroundColor: "#64748b",
-        pointBorderColor: "#64748b",
-        pointRadius: (context) => semana[context.dataIndex]?.registro ? 0 : 3,
-        pointStyle: "circle",
-        spanGaps: true,
-        tension: 0,
       },
     ],
   }), [semana]);
@@ -274,7 +217,6 @@ function BrasaAoVivo() {
       legend: { display: false },
       tooltip: {
         backgroundColor: "#142e23",
-        filter: (context) => context.datasetIndex === (semana[context.dataIndex]?.registro ? 0 : 1),
         callbacks: {
           title: (items) => {
             const item = items[0];
@@ -284,10 +226,8 @@ function BrasaAoVivo() {
           },
           label: (context) => {
             const registro = semana[context.dataIndex]?.registro;
-            if (!registro) return "Aguardando coleta";
-            const transactionDay = transactionDays.get(registro.date);
-            const usdc = asNumber(registro.total_usdc) || transactionDay?.totalUsdc || 0;
-            return `${formatBRL(asNumber(registro.total_brl))} (${formatUSDC(usdc)} USDC)`;
+            if (!registro) return "";
+            return `${formatBRL(asNumber(registro.total_brl))} (${formatUSDC(asNumber(registro.total_usdc))} USDC)`;
           },
         },
       },
@@ -301,7 +241,6 @@ function BrasaAoVivo() {
           minRotation: 0,
           autoSkip: false,
           callback: function (_value, index) {
-            if (this.chart.width < 500 && ![0, 3, 6].includes(index)) return "";
             const item = semana[index];
             return item ? [formatDate(item.date), formatWeekday(item.date)] : "";
           },
@@ -314,7 +253,7 @@ function BrasaAoVivo() {
         ticks: { color: "#8fb09c", callback: (value) => formatBRLCompact(Number(value)) },
       },
     },
-  }), [chartMaximum, semana, transactionDays]);
+  }), [chartMaximum, semana]);
 
   return (
     <main className="min-h-screen bg-background text-foreground">
