@@ -17,8 +17,8 @@ export type TransactionRow = Record<string, unknown>;
 type OnchainProofsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  rows: TransactionRow[];
-  transactionCount: number;
+  rows?: TransactionRow[];
+  transactionCount?: number;
   loading: boolean;
   error: boolean;
 };
@@ -50,9 +50,10 @@ const formatTime = (value: string) => {
 
 const csvCell = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
 
-export function OnchainProofsDialog({ open, onOpenChange, rows, transactionCount, loading, error }: OnchainProofsDialogProps) {
+export function OnchainProofsDialog({ open, onOpenChange, rows = [], transactionCount = 0, loading, error }: OnchainProofsDialogProps) {
   const [exporting, setExporting] = useState(false);
   const [feedback, setFeedback] = useState("");
+  const safeTransactionCount = Number.isFinite(Number(transactionCount)) ? Number(transactionCount) : 0;
   const signatures = rows.map((row) => textFrom(row, ["signature"])).filter(Boolean);
   const hasMissingSignature = rows.length === 0 || rows.some((row) => !textFrom(row, ["signature"]));
 
@@ -118,13 +119,13 @@ export function OnchainProofsDialog({ open, onOpenChange, rows, transactionCount
             <span>Provas On-Chain</span>
           </DialogTitle>
           <DialogDescription className="text-left leading-relaxed">
-            <strong className="text-foreground">{transactionCount.toLocaleString("pt-BR")} transações auditáveis</strong>
+            <strong className="text-foreground">{safeTransactionCount.toLocaleString("pt-BR")} transações auditáveis</strong>
             {" | 12 carteiras monitoradas | Fonte: Solana RPC + Helius"}
           </DialogDescription>
           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
             <Button type="button" onClick={() => void downloadCsv()} disabled={exporting || rows.length === 0}>
               <Download aria-hidden="true" />
-              {exporting ? "Gerando CSV..." : `Baixar CSV com todas as ${transactionCount.toLocaleString("pt-BR")} signatures`}
+              {exporting ? "Gerando CSV..." : `Baixar CSV com todas as ${safeTransactionCount.toLocaleString("pt-BR")} signatures`}
             </Button>
             <Button type="button" variant="outline" onClick={() => void copySignatures()} disabled={signatures.length === 0}>
               <Copy aria-hidden="true" /> Copiar 5 assinaturas para teste
