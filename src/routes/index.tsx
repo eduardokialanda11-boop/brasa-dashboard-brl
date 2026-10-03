@@ -41,14 +41,6 @@ const formatWeekday = (value: string) =>
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toUpperCase();
-const todayInSaoPaulo = () =>
-  new Intl.DateTimeFormat("en-CA", {
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-    timeZone: "America/Sao_Paulo",
-  }).format(new Date());
-
 const referenceDate = () =>
   new Intl.DateTimeFormat("pt-BR", {
     day: "2-digit",
@@ -85,11 +77,12 @@ function BrasaAoVivo() {
     let active = true;
 
     async function fetchDashboard() {
-      const [todayResult, historyResult, transactionResult] = await Promise.all([
+      const [latestResult, historyResult, transactionResult] = await Promise.all([
         supabase
           .from("daily_volumes")
           .select("date, total_brl, total_usdc, tx_count, usd_brl_rate")
-          .eq("date", todayInSaoPaulo())
+          .order("date", { ascending: false })
+          .limit(1)
           .maybeSingle<DailyVolume>(),
         supabase
           .from("daily_volumes")
@@ -101,12 +94,12 @@ function BrasaAoVivo() {
       ]);
 
       if (!active) return;
-      if (todayResult.error || historyResult.error) {
-        console.warn("Não foi possível carregar daily_volumes:", todayResult.error ?? historyResult.error);
+      if (latestResult.error || historyResult.error) {
+        console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error);
       }
-      setResumo(todayResult.data ?? null);
+      setResumo(latestResult.data ?? null);
       setHistorico(historyResult.data ?? []);
-      if (!todayResult.error && !historyResult.error) {
+      if (!latestResult.error && !historyResult.error) {
         const now = new Date();
         setAtualizadoEm(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" }));
         setAtualizadoEmCompleto(now);
