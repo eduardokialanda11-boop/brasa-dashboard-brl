@@ -20,3 +20,4 @@
 - [x] Resumo pelo último dia disponível e gráfico somente com datas reais de `daily_volumes`, sem preenchimento futuro
 - [x] Atualização ao vivo acionada por mudanças na própria `daily_volumes`, sem uso de `pix_onchain_events`
 - [x] Modal auditável com 50 eventos reais de `pix_onchain_events`, links Solscan, CSV completo e cópia de assinaturas
+- [x] Resumo separado por data selecionável e acumulado histórico real de `daily_volumes`

@@ -31,6 +31,12 @@ type DailyVolume = {
   usd_brl_rate: number | string | null;
 };
 
+type AccumulatedVolume = {
+  totalBrl: number;
+  totalUsdc: number;
+  txCount: number;
+};
+
 const asNumber = (value: number | string | null | undefined) => Number(value ?? 0);
 const formatDate = (value: string) =>
   new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${value}T12:00:00`));
@@ -64,6 +70,8 @@ export const Route = createFileRoute("/")({
 
 function BrasaAoVivo() {
   const [resumo, setResumo] = useState<DailyVolume | null>(null);
+  const [dataSelecionada, setDataSelecionada] = useState("");
+  const [acumulado, setAcumulado] = useState<AccumulatedVolume>({ totalBrl: 0, totalUsdc: 0, txCount: 0 });
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
@@ -77,7 +85,14 @@ function BrasaAoVivo() {
     let active = true;
 
     async function fetchDashboard() {
-      const [latestResult, historyResult, transactionResult] = await Promise.all([
+      const selectedDayQuery = dataSelecionada
+        ? supabase
+            .from("daily_volumes")
+            .select("date, total_brl, total_usdc, tx_count, usd_brl_rate")
+            .eq("date", dataSelecionada)
+            .maybeSingle<DailyVolume>()
+        : null;
+      const [latestResult, historyResult, totalsResult, transactionResult, selectedDayResult] = await Promise.all([
         supabase
           .from("daily_volumes")
           .select("date, total_brl, total_usdc, tx_count, usd_brl_rate")
@@ -87,23 +102,35 @@ function BrasaAoVivo() {
         supabase
           .from("daily_volumes")
           .select("date, total_brl, total_usdc, tx_count, usd_brl_rate")
-          .order("date", { ascending: true })
+          .order("date", { ascending: false })
           .limit(7)
           .returns<DailyVolume[]>(),
+        supabase
+          .from("daily_volumes")
+          .select("total_brl, total_usdc, tx_count")
+          .returns<Pick<DailyVolume, "total_brl" | "total_usdc" | "tx_count">[]>(),
         supabase
           .from("pix_onchain_events")
           .select("signature, gateway_wallet, amount_usdc, amount_brl, block_time")
           .order("block_time", { ascending: false })
           .limit(50),
+        selectedDayQuery,
       ]);
 
       if (!active) return;
-      if (latestResult.error || historyResult.error) {
-        console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error);
+      if (latestResult.error || historyResult.error || totalsResult.error || selectedDayResult?.error) {
+        console.warn("Não foi possível carregar daily_volumes:", latestResult.error ?? historyResult.error ?? totalsResult.error ?? selectedDayResult?.error);
       }
-      setResumo(latestResult.data ?? null);
-      setHistorico(historyResult.data ?? []);
-      if (!latestResult.error && !historyResult.error) {
+      const latestRow = latestResult.data ?? null;
+      if (!dataSelecionada && latestRow?.date) setDataSelecionada(latestRow.date);
+      setResumo(dataSelecionada ? selectedDayResult?.data ?? null : latestRow);
+      setHistorico([...(historyResult.data ?? [])].reverse());
+      setAcumulado((totalsResult.data ?? []).reduce<AccumulatedVolume>((sum, row) => ({
+        totalBrl: sum.totalBrl + asNumber(row.total_brl),
+        totalUsdc: sum.totalUsdc + asNumber(row.total_usdc),
+        txCount: sum.txCount + asNumber(row.tx_count),
+      }), { totalBrl: 0, totalUsdc: 0, txCount: 0 }));
+      if (!latestResult.error && !historyResult.error && !totalsResult.error && !selectedDayResult?.error) {
         const now = new Date();
         setAtualizadoEm(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" }));
         setAtualizadoEmCompleto(now);
@@ -131,7 +158,7 @@ function BrasaAoVivo() {
       window.clearInterval(refreshInterval);
       void supabase.removeChannel(realtimeChannel);
     };
-  }, []);
+  }, [dataSelecionada]);
 
   const totalBrl = asNumber(resumo?.total_brl);
   const totalUsdc = asNumber(resumo?.total_usdc);
@@ -274,13 +301,27 @@ function BrasaAoVivo() {
             O BRASA monitora em tempo real quanto de Real (PIX) virou USDC na Solana hoje. Dados 100% on-chain, auditáveis no Solscan.
           </p>
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground">
-            <p>{resumo?.date ? `Último dado verificado em: ${formatDate(resumo.date)}` : `Referência hoje: ${referenceDate()}`}</p>
+            <p>{historico.at(-1)?.date ? `Último dado verificado em: ${formatDate(historico.at(-1)?.date ?? "")}` : `Referência hoje: ${referenceDate()}`}</p>
             {atualizadoEm && <p className="shrink-0">Atualizado às {atualizadoEm}</p>}
           </div>
         </header>
 
+        <div className="grid gap-4 md:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
-          <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.14em] text-muted-foreground lg:text-xs">Resumo de hoje</p>
+          <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+            <h2 className="text-lg font-bold lg:text-xl">Hoje</h2>
+            <label className="flex items-center gap-2 text-[11px] font-semibold uppercase text-muted-foreground">
+              Data
+              <input
+                type="date"
+                value={dataSelecionada}
+                max={historico.at(-1)?.date}
+                onChange={(event) => setDataSelecionada(event.target.value)}
+                className="h-9 rounded-md border border-border bg-secondary px-2 text-xs font-medium text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20"
+                aria-label="Selecionar data do resumo"
+              />
+            </label>
+          </div>
           {carregando ? (
             <p className="py-16 text-center text-sm text-muted-foreground">Carregando dados reais da blockchain Solana...</p>
           ) : (
@@ -299,7 +340,7 @@ function BrasaAoVivo() {
                   ) : null}
                 </div>
                 <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
-                  em PIX convertido para USDC na Solana hoje{resumo?.date ? ` (${formatDate(resumo.date)})` : ""}
+                  em PIX convertido para USDC na Solana em {resumo?.date ? formatDate(resumo.date) : dataSelecionada ? formatDate(dataSelecionada) : "—"}
                 </p>
               </div>
               <div className="py-3">
@@ -346,6 +387,31 @@ function BrasaAoVivo() {
             </div>
           )}
         </section>
+
+        <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+          <p className="text-[11px] font-bold uppercase text-muted-foreground">Crescimento histórico do BRASA</p>
+          <h2 className="mt-1 text-lg font-bold lg:text-xl">Acumulado Total</h2>
+          {carregando ? (
+            <p className="py-16 text-center text-sm text-muted-foreground">Calculando o histórico real...</p>
+          ) : (
+            <div className="mt-5 divide-y divide-border">
+              <div className="pb-4">
+                <strong className="text-2xl font-bold text-primary lg:text-3xl">{formatBRL(acumulado.totalBrl)}</strong>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">no total desde o início</p>
+              </div>
+              <div className="py-4">
+                <strong className="text-2xl font-bold lg:text-3xl">{formatUSDC(acumulado.totalUsdc)} <span className="text-sm text-muted-foreground lg:text-base">USDC</span></strong>
+              </div>
+              <div className="pt-4">
+                <strong className="text-2xl font-bold lg:text-3xl">{acumulado.txCount.toLocaleString("pt-BR")} <span className="text-sm text-muted-foreground lg:text-base">txs</span></strong>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
+                  {formatBRL(acumulado.totalBrl)} no total <span aria-hidden="true">|</span> {formatUSDC(acumulado.totalUsdc)} USDC <span aria-hidden="true">|</span> {acumulado.txCount.toLocaleString("pt-BR")} txs desde o início
+                </p>
+              </div>
+            </div>
+          )}
+        </section>
+        </div>
 
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-xl md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">

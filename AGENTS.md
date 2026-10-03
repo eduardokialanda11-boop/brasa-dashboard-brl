@@ -10,7 +10,7 @@
 <!-- LOVABLE:END -->
 
 - Keep all dashboard currency presentation in `src/utils/format.ts` so cards and charts use identical locale-safe formatting.
-- Read the latest available row by descending date for the summary and up to seven chronological rows for the chart exclusively from `daily_volumes`.
+- Default the daily summary to the latest `daily_volumes` date, refetch an exact row when selected, total all real rows, and chart the seven latest rows chronologically.
 - Never write to `daily_volumes` from the frontend; `public.criar_dia_certo()` via `pg_cron` exclusively creates daily volume rows.
 - Refresh by rereading `daily_volumes` every 60 seconds and after its realtime changes; never increment source values in browser state.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
