@@ -21,3 +21,4 @@
 - [x] Atualização ao vivo acionada por mudanças na própria `daily_volumes`, sem uso de `pix_onchain_events`
 - [x] Modal auditável com 50 eventos reais de `pix_onchain_events`, links Solscan, CSV completo e cópia de assinaturas
 - [x] Resumo separado por data selecionável e acumulado histórico real de `daily_volumes`
+- [x] Card semanal com crescimento diário, média, melhor dia e tendência calculados com dados reais

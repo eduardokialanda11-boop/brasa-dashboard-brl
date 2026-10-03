@@ -206,10 +206,12 @@ function BrasaAoVivo() {
     const pico = Math.max(...volumes);
     const picoIndex = volumes.indexOf(pico);
     const picoData = historico[picoIndex]?.date;
-    const primeiro = volumes[0] ?? 0;
-    const ultimo = volumes[volumes.length - 1] ?? 0;
-    const crescimento = historico.length === 7 && primeiro > 0 ? ((ultimo - primeiro) / primeiro) * 100 : null;
-    return { media, pico, picoData, crescimento };
+    const ultimosTres = volumes.slice(-3);
+    const tresAnteriores = volumes.slice(-6, -3);
+    const mediaUltimosTres = ultimosTres.reduce((sum, value) => sum + value, 0) / Math.max(1, ultimosTres.length);
+    const mediaTresAnteriores = tresAnteriores.reduce((sum, value) => sum + value, 0) / Math.max(1, tresAnteriores.length);
+    const tendenciaAlta = ultimosTres.length === 3 && tresAnteriores.length === 3 && mediaUltimosTres > mediaTresAnteriores;
+    return { media, pico, picoData, tendenciaAlta };
   }, [historico]);
   const chartMaximum = Math.max(1, ...historico.map((item) => asNumber(item.total_brl))) * 1.3;
   const progress = Math.min(100, Math.round((historico.length / 7) * 100));
@@ -415,14 +417,23 @@ function BrasaAoVivo() {
 
         <section className="mt-6 rounded-2xl border border-border bg-card p-5 shadow-xl md:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold md:text-xl">Volume nos últimos 7 dias</h2>
-            {inicioDaColeta ? (
-              <span className="rounded-full bg-highlight/15 px-2.5 py-1 text-xs font-semibold text-highlight">Início da coleta real</span>
-            ) : insight?.crescimento != null ? (
-              <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${insight.crescimento >= 0 ? "bg-primary/10 text-primary" : "bg-accent text-highlight"}`}>
-                {insight.crescimento >= 0 ? `📈 Solana crescendo +${insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% no Brasil` : `📉 Em correção ${insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%`}
-              </span>
-            ) : <span className="text-xs text-muted-foreground">{historico.length}/7 dias reais</span>}
+            <h2 className="text-lg font-bold md:text-xl">Solana está crescendo no Brasil?</h2>
+            {insight?.tendenciaAlta ? (
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Tendência de alta</span>
+            ) : (
+              <span className="rounded-full bg-highlight/15 px-2.5 py-1 text-xs font-semibold text-highlight">{historico.length}/7 dias reais</span>
+            )}
+          </div>
+          <div className="mt-4">
+            {variacao == null ? (
+              <p className="text-sm font-semibold text-muted-foreground">Aguardando dois dias reais para comparar</p>
+            ) : variacao > 0 ? (
+              <p className="text-lg font-bold text-primary">↗ Crescendo +{variacao.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% vs ontem</p>
+            ) : variacao < 0 ? (
+              <p className="text-lg font-bold text-destructive">↘ Caindo {variacao.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% vs ontem</p>
+            ) : (
+              <p className="text-lg font-bold text-muted-foreground">Sem variação vs ontem</p>
+            )}
           </div>
           <div className="mt-4">
             <div className="mb-1.5 flex justify-between text-[11px] text-muted-foreground"><span>Coleta: {historico.length}/7 dias</span><span>{progress}%</span></div>
@@ -433,20 +444,10 @@ function BrasaAoVivo() {
           </div>
           {insight && (
             <div className="mt-4 rounded-lg bg-secondary p-3 text-xs leading-relaxed md:text-sm">
-              {inicioDaColeta ? (
-                <p className="text-foreground">{transacoes.toLocaleString("pt-BR")} transações PIX-USDC detectadas na Solana no Brasil. Volte em 7 dias para ver tendência de crescimento.</p>
-              ) : insight.crescimento == null ? (
-                <p className="text-foreground">
-                  <span aria-hidden="true">🌱</span> Início da coleta real — {transacoes.toLocaleString("pt-BR")} transações PIX→USDC detectadas na Solana no Brasil. Volte em 7 dias para ver tendência de crescimento.
-                </p>
-              ) : insight.crescimento >= 0 ? (
-                <p className="font-semibold text-primary"><span aria-hidden="true">📈</span> Solana no Brasil: +{insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% em 7 dias</p>
-              ) : (
-                <p className="font-semibold text-highlight"><span aria-hidden="true">📉</span> {insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% — volume em correção</p>
-              )}
-              <p className="mt-2 text-muted-foreground">
-                Média diária: {formatBRLWhole(insight.media)} <span aria-hidden="true">|</span> Pico: {formatBRLWhole(insight.pico)} em {insight.picoData ? formatDate(insight.picoData) : "—"}
+              <p className="text-foreground">
+                Média 7 dias: {formatBRLWhole(insight.media)} <span aria-hidden="true">|</span> Melhor dia: {insight.picoData ? formatDate(insight.picoData) : "—"} com {formatBRLCompact(insight.pico)}
               </p>
+              {historico.length < 6 && <p className="mt-2 text-muted-foreground">A tendência será calculada após seis dias reais de coleta.</p>}
             </div>
           )}
         </section>
