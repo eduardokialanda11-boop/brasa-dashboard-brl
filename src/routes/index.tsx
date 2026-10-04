@@ -115,7 +115,7 @@ function BrasaAoVivo() {
       title: (items) => { const item = items[0]; if (!item) return ""; const dia = semana[item.dataIndex]; return dia? `${formatDate(dia.date)} (${formatWeekday(dia.date)})` : ""; },
       label: (context) => { const registro = semana[context.dataIndex]?.registro; return registro? `${formatBRL(asNumber(registro.total_brl))} (${formatUSDC(asNumber(registro.total_usdc))} USDC)` : ""; },
     } } },
-    scales: { x: { grid: { display: false }, ticks: { color: "#8fb09c", callback: function (_value, index) { const item = semana[index]; return item? [formatDate(item.date), formatWeekday(item.date)] : ""; } }, y: { beginAtZero: true, max: chartMaximum, grid: { color: "rgba(255,255,255,.06)" }, ticks: { color: "#8fb09c", callback: (value) => formatBRLCompact(Number(value)) } } },
+    scales: { x: { grid: { display: false }, ticks: { color: "#8fb09c", callback: function (_value, index) { const item = semana[index]; return item? [formatDate(item.date), formatWeekday(item.date)] : ""; } } }, y: { beginAtZero: true, max: chartMaximum, grid: { color: "rgba(255,255,255,.06)" }, ticks: { color: "#8fb09c", callback: (value) => formatBRLCompact(Number(value)) } } },
   }), [chartMaximum, semana]);
 
   return (
