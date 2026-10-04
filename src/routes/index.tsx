@@ -1,4 +1,4 @@
-8import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   CategoryScale,
   Chart as ChartJS,
