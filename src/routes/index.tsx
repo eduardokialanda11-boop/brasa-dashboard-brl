@@ -13,7 +13,7 @@ import {
 import { Line } from "react-chartjs-2";
 import { Activity, Info, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import brasaIcon from "@/assets/brasa-b-icon.png.asset.json";
+import brasaIcon from "@/assets/brasa-b-logo.png.asset.json";
 import { OnchainProofsDialog, type TransactionRow } from "@/components/onchain-proofs-dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip as InfoTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
