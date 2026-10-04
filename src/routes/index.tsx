@@ -26,16 +26,22 @@ type AccumulatedVolume = { totalBRL: number; totalUSDC: number; txCount: number;
 const asNumber = (value: number | string | null | undefined) => Number(value?? 0);
 const formatDate = (value: string) => new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${value}T12:00:00`));
 const formatWeekday = (value: string) => new Intl.DateTimeFormat("pt-BR", { weekday: "short", timeZone: "UTC" }).format(new Date(`${value}T12:00:00Z`)).replace(".", "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase();
-const referenceDate = () => new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", timeZone: "America/Sao_Paulo" }).format(new Date());
+const brazilDate = () => new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
 
 export const Route = createFileRoute("/")({
-  head: () => ({ meta: [{ title: "Brasa | Índice PIX para USDC na Solana" }, { name: "description", content: "Volume real de PIX convertido em USDC na Solana, atualizado a cada 60 segundos." }] }),
+  head: () => ({ meta: [
+    { title: "Brasa | Índice PIX para USDC na Solana" },
+    { name: "description", content: "Volume real de PIX convertido em USDC na Solana, atualizado a cada 60 segundos." },
+    { property: "og:title", content: "Brasa | Índice PIX para USDC na Solana" },
+    { property: "og:description", content: "Volume real de PIX convertido em USDC na Solana, atualizado a cada 60 segundos." },
+    { property: "og:type", content: "website" },
+    { name: "twitter:card", content: "summary" },
+  ] }),
   component: BrasaAoVivo,
 });
 
 function BrasaAoVivo() {
   const [resumo, setResumo] = useState<DailyVolume | null>(null);
-  const [dataSelecionada, setDataSelecionada] = useState("");
   const [acumulado, setAcumulado] = useState<AccumulatedVolume>({ totalBRL: 0, totalUSDC: 0, txCount: 0 });
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -45,48 +51,39 @@ function BrasaAoVivo() {
   const [provasAbertas, setProvasAbertas] = useState(false);
   const [provasCarregando, setProvasCarregando] = useState(true);
   const [provasErro, setProvasErro] = useState(false);
-  const [labelHoje, setLabelHoje] = useState("Hoje (tempo real)");
 
   useEffect(() => {
     let active = true;
     async function fetchDashboard() {
       try {
-        const hojeBR = new Date().toLocaleDateString("en-CA", { timeZone: "America/Sao_Paulo" });
-        const inicioHojeUTC = new Date(`${hojeBR}T00:00:00-03:00`).toISOString();
-        const [hojeResult, trendResult, allTimeResult, transactionResult] = await Promise.all([
-          supabase.from("pix_onchain_events").select("amount_brl, amount_usdc").gte("block_time", inicioHojeUTC).gte("amount_usdc", 5),
-          supabase.rpc("get_brasa_historical_trend", { days_limit: 7 }),
-          supabase.rpc("get_brasa_historical_trend", { days_limit: 1000 }),
-          supabase.from("pix_onchain_events").select("signature, gateway_wallet, amount_usdc, amount_brl, block_time").gte("amount_usdc", 5).order("block_time", { ascending: false }).limit(50),
+        const [dayResult, totalResult, trendResult, transactionResult] = await Promise.all([
+          supabase.from("daily_summary_brt").select("*").order("date", { ascending: false }).limit(1).single(),
+          supabase.from("daily_summary_brt").select("total_brl, tx_count"),
+          supabase.from("daily_summary_brt").select("*").order("date", { ascending: false }).limit(7),
+          supabase.from("pix_onchain_events").select("signature, amount_brl, block_time").order("block_time", { ascending: false }).limit(20),
         ]);
         if (!active) return;
-        let trendMapped: DailyVolume[] = []; let allTimeMapped: DailyVolume[] = [];
-        if (trendResult.data) { trendMapped = trendResult.data.map((item: any) => ({ date: item.event_date, total_brl: item.daily_brl, total_usdc: item.daily_usdc, tx_count: item.daily_txs, usd_brl_rate: item.daily_usdc > 0? item.daily_brl / item.daily_usdc : 5.19, })).sort((a: any, b: any) => a.date.localeCompare(b.date)); setHistorico(trendMapped); }
-        if (allTimeResult.data) { allTimeMapped = allTimeResult.data.map((item: any) => ({ date: item.event_date, total_brl: item.daily_brl, total_usdc: item.daily_usdc, tx_count: item.daily_txs, usd_brl_rate: item.daily_usdc > 0? item.daily_brl / item.daily_usdc : 5.19, })); const total = allTimeResult.data.reduce((sum: any, row: any) => ({ brl: sum.brl + Number(row.daily_brl), usdc: sum.usdc + Number(row.daily_usdc), txs: sum.txs + Number(row.daily_txs), }), { brl: 0, usdc: 0, txs: 0 }); setAcumulado({ totalBRL: total.brl, totalUSDC: total.usdc, txCount: total.txs }); }
-        const totalHojeBRL = hojeResult.data?.reduce((s: number, r: any) => s + Number(r.amount_brl), 0)?? 0; const totalHojeUSDC = hojeResult.data?.reduce((s: number, r: any) => s + Number(r.amount_usdc), 0)?? 0; const txHoje = hojeResult.data?.length?? 0;
-        if (dataSelecionada) {
-          const escolhido = allTimeMapped.find((m) => m.date === dataSelecionada) || trendMapped.find((m) => m.date === dataSelecionada);
-          if (escolhido) { setResumo(escolhido); setLabelHoje(`Dia ${formatDate(dataSelecionada)}`); }
-          else {
-            const { data: diaEspecifico } = await supabase.from("pix_onchain_events").select("amount_brl, amount_usdc").gte("block_time", `${dataSelecionada}T00:00:00-03:00`).lte("block_time", `${dataSelecionada}T23:59:59-03:00`).gte("amount_usdc", 5);
-            if (diaEspecifico && diaEspecifico.length > 0) {
-              const brl = diaEspecifico.reduce((s: number, r: any) => s + Number(r.amount_brl), 0); const usdc = diaEspecifico.reduce((s: number, r: any) => s + Number(r.amount_usdc), 0);
-              setResumo({ date: dataSelecionada, total_brl: brl, total_usdc: usdc, tx_count: diaEspecifico.length, usd_brl_rate: usdc > 0? brl/usdc : 5.19 });
-            } else { setResumo({ date: dataSelecionada, total_brl: 0, total_usdc: 0, tx_count: 0, usd_brl_rate: 5.19 }); }
-            setLabelHoje(`Dia ${formatDate(dataSelecionada)}`);
-          }
-        } else {
-          if (totalHojeBRL > 0) { setResumo({ date: hojeBR, total_brl: totalHojeBRL, total_usdc: totalHojeUSDC, tx_count: txHoje, usd_brl_rate: totalHojeUSDC > 0? totalHojeBRL / totalHojeUSDC : 5.19 }); setLabelHoje("Hoje (tempo real)"); }
-          else if (trendMapped.length > 0) { const ultimo = trendMapped.at(-1)!; setResumo(ultimo); setLabelHoje(`Último fechamento: ${formatDate(ultimo.date)}`); }
-        }
-        if (transactionResult.data) setTransactions(transactionResult.data as TransactionRow[]);
+        if (dayResult.error && dayResult.error.code !== "PGRST116") throw dayResult.error;
+        if (totalResult.error) throw totalResult.error;
+        if (trendResult.error) throw trendResult.error;
+        if (transactionResult.error) setProvasErro(true);
+        setResumo((dayResult.data as DailyVolume | null) ?? null);
+        const chronological = ((trendResult.data ?? []) as DailyVolume[]).sort((a, b) => a.date.localeCompare(b.date));
+        setHistorico(chronological);
+        const total = (totalResult.data ?? []).reduce((sum, row) => ({
+          totalBRL: sum.totalBRL + asNumber(row.total_brl),
+          totalUSDC: 0,
+          txCount: sum.txCount + asNumber(row.tx_count),
+        }), { totalBRL: 0, totalUSDC: 0, txCount: 0 });
+        setAcumulado(total);
+        setTransactions((transactionResult.data ?? []) as TransactionRow[]);
         const now = new Date(); setAtualizadoEm(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" })); setAtualizadoEmCompleto(now);
       } catch (err) { console.error(err); setProvasErro(true); } finally { if (active) { setCarregando(false); setProvasCarregando(false); } }
     }
     fetchDashboard(); const refreshInterval = window.setInterval(() => { fetchDashboard(); }, 60_000);
-    const realtimeChannel = supabase.channel("pix_events_live").on("postgres_changes", { event: "INSERT", schema: "public", table: "pix_onchain_events" }, () => { fetchDashboard(); }).subscribe();
+    const realtimeChannel = supabase.channel("daily_summary_brt_live").on("postgres_changes", { event: "*", schema: "public", table: "daily_summary_brt" }, () => { fetchDashboard(); }).subscribe();
     return () => { active = false; window.clearInterval(refreshInterval); supabase.removeChannel(realtimeChannel); };
-  }, [dataSelecionada]);
+  }, []);
 
   const totalBrl = asNumber(resumo?.total_brl); const totalUsdc = asNumber(resumo?.total_usdc); const transacoes = asNumber(resumo?.tx_count);
   const dolarInformado = asNumber(resumo?.usd_brl_rate); const dolar = dolarInformado > 0? dolarInformado : totalUsdc > 0? totalBrl / totalUsdc : null;
@@ -123,21 +120,16 @@ function BrasaAoVivo() {
       <div className="mx-auto w-full max-w-[480px] px-4 py-6 md:max-w-[900px] md:px-8 md:py-10">
         <header className="mb-6 border-b border-border pb-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:flex md:justify-between">
-            <div className="flex min-w-0 items-center gap-3"><div className="size-11 shrink-0 rounded-full bg-primary flex items-center justify-center font-bold text-white">B</div><p className="truncate text-sm font-bold md:text-base">BRASA</p></div>
+            <div className="flex items-center gap-2"><div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">B</div><span className="font-bold">BRASA</span></div>
             <div className="flex shrink-0 items-center justify-end gap-2 text-[11px] font-bold text-primary md:text-xs"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" /><span className="relative inline-flex size-2.5 rounded-full bg-primary" /></span>REAL ON-CHAIN</div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">O BRASA monitora em tempo real quanto de Real (PIX) virou USDC na Solana hoje. Dados 100% on-chain, auditáveis no Solscan.</p>
-          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"><p>{historico.at(-1)?.date? `Último dado verificado em: ${formatDate(historico.at(-1)?.date?? "")}` : `Referência hoje: ${referenceDate()}`}</p>{atualizadoEm && <p className="shrink-0">Atualizado às {atualizadoEm}</p>}</div>
+          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"><p>{resumo?.date ? `Referência hoje: ${formatDate(resumo.date)}${resumo.date < brazilDate() ? " (último dado on-chain)" : ""}` : "Aguardando primeiro dado on-chain"}</p>{atualizadoEm && <p className="shrink-0">Atualizado às {atualizadoEm}</p>}</div>
         </header>
         <div className="grid gap-4 md:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <h2 className="text-lg font-bold lg:text-xl">{labelHoje}</h2>
-            <label className="flex items-center gap-2 text-[11px] font-semibold uppercase text-muted-foreground">
-              Data
-              <input type="date" value={dataSelecionada} onChange={(event) => setDataSelecionada(event.target.value)} max={historico.at(-1)?.date}
-                className="h-9 rounded-md border border-border bg-secondary px-2 text-xs font-medium text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/20" aria-label="Selecionar data do resumo" />
-            </label>
+            <h2 className="text-lg font-bold lg:text-xl">Dia</h2>
           </div>
           {carregando? (
             <div className="py-16 text-center text-sm text-muted-foreground"><p>Carregando dados reais da blockchain Solana...</p></div>
@@ -154,7 +146,7 @@ function BrasaAoVivo() {
                     <span className={`text-xs font-bold ${variacao >= 0? "text-primary" : "text-destructive"}`}>{variacao >= 0? "+" : ""}{variacao.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}% hoje</span>
                   ) : null}
                 </div>
-                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">em PIX convertido para USDC na Solana {dataSelecionada? `em ${formatDate(dataSelecionada)}` : ""}</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">em PIX convertido para USDC na Solana {resumo?.date ? `em ${formatDate(resumo.date)}` : ""}</p>
               </div>
               <div className="py-3">
                 <p className="text-2xl font-bold lg:text-3xl">{formatUSDC(totalUsdc)} <span className="text-sm font-medium text-muted-foreground lg:text-base">USDC</span></p>
@@ -195,7 +187,6 @@ function BrasaAoVivo() {
           {carregando? (<p className="py-16 text-center text-sm text-muted-foreground">Calculando o histórico real...</p>) : (
             <div className="mt-5 divide-y divide-border">
               <div className="pb-4"><p className="text-2xl font-bold text-primary lg:text-3xl">{formatBRLWhole(acumulado.totalBRL)}</p><p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">no total desde o início - R$ 128M auditáveis</p></div>
-              <div className="py-4"><p className="text-2xl font-bold lg:text-3xl">{formatUSDC(acumulado.totalUSDC)} <span className="text-sm font-medium text-muted-foreground lg:text-base">USDC</span></p><p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">acumulado on-chain</p></div>
               <div className="py-4"><p className="text-2xl font-bold lg:text-3xl">{acumulado.txCount.toLocaleString("pt-BR")} <span className="text-sm font-medium text-muted-foreground lg:text-base">txs</span></p><p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">{formatBRL(acumulado.totalBRL)} no total | {acumulado.txCount.toLocaleString("pt-BR")} txs desde o início</p></div>
             </div>
           )}

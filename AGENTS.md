@@ -10,9 +10,8 @@
 <!-- LOVABLE:END -->
 
 - Keep all dashboard currency presentation in `src/utils/format.ts` so cards and charts use identical locale-safe formatting.
-- Default the daily summary to the latest `daily_volumes` date, refetch an exact row when selected, total all real rows, and chart the seven latest rows chronologically.
-- Never write to `daily_volumes` from the frontend; `public.criar_dia_certo()` via `pg_cron` exclusively creates daily volume rows.
-- Refresh by rereading `daily_volumes` every 60 seconds and after its realtime changes; never increment source values in browser state.
+- Use `daily_summary_brt` exclusively for the daily card, accumulated totals, and seven-day chart; the daily card always uses its latest available date.
+- Refresh by rereading `daily_summary_brt` every 60 seconds and after its realtime changes; never increment source values in browser state.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
-- Treat `pix_onchain_events` as the read-only proof source: group all real rows into up to 12 gateway-wallet proofs, export that aggregation, and show available individual signatures without substitutes.
-- Calculate dashboard growth from chronological `daily_volumes`; never append missing or future dates to the chart.
+- Treat only the 20 latest `pix_onchain_events` rows as the proof source, reading signature, BRL amount, and block time without substitutes.
+- Calculate dashboard growth from chronological `daily_summary_brt`; never append missing or future dates to the chart.
