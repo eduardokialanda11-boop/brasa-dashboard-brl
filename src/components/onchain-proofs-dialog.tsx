@@ -72,12 +72,12 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
       ...rows.map((row) => {
         const signature = textFrom(row, ["signature"]);
         return [
-        signature,
-        numberFrom(row, ["amount_brl"]),
-        textFrom(row, ["block_time"]),
-        signature ? `https://solscan.io/tx/${signature}` : "",
-      ].map(csvCell).join(",")),
-      },
+          signature,
+          numberFrom(row, ["amount_brl"]),
+          textFrom(row, ["block_time"]),
+          signature ? `https://solscan.io/tx/${signature}` : "",
+        ].map(csvCell).join(",");
+      }),
     ].join("\r\n");
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");

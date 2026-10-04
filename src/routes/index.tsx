@@ -121,7 +121,7 @@ function BrasaAoVivo() {
         <header className="mb-6 border-b border-border pb-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:flex md:justify-between">
             <div className="flex items-center gap-2"><div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">B</div><span className="font-bold">BRASA</span></div>
-            <div className="flex shrink-0 items-center justify-end gap-2 text-[11px] font-bold text-primary md:text-xs"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" /><span className="relative inline-flex size-2.5 rounded-full bg-primary" /></span>REAL ON-CHAIN</div>
+            <div className="flex shrink-0 items-center justify-end gap-2 text-[11px] font-bold text-primary md:text-xs"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" /><span className="relative inline-flex size-2.5 rounded-full bg-primary" /></span>REAL-ON-CHAIN</div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">O BRASA monitora em tempo real quanto de Real (PIX) virou USDC na Solana hoje. Dados 100% on-chain, auditáveis no Solscan.</p>
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"><p>{resumo?.date ? `Referência hoje: ${formatDate(resumo.date)}${resumo.date < brazilDate() ? " (último dado on-chain)" : ""}` : "Aguardando primeiro dado on-chain"}</p>{atualizadoEm && <p className="shrink-0">Atualizado às {atualizadoEm}</p>}</div>
