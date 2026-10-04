@@ -13,6 +13,7 @@ import {
 import { Line } from "react-chartjs-2";
 import { Activity, Info, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import brasaIcon from "@/assets/brasa-b-logo.png.asset.json";
 import { OnchainProofsDialog, type TransactionRow } from "@/components/onchain-proofs-dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip as InfoTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -120,7 +121,7 @@ function BrasaAoVivo() {
       <div className="mx-auto w-full max-w-[480px] px-4 py-6 md:max-w-[900px] md:px-8 md:py-10">
         <header className="mb-6 border-b border-border pb-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:flex md:justify-between">
-            <div className="flex items-center gap-2"><div className="flex size-8 shrink-0 items-center justify-center rounded-full bg-primary font-bold text-primary-foreground">B</div><span className="font-bold">BRASA</span></div>
+            <div className="flex items-center gap-2"><img src={brasaIcon.url} alt="" className="size-8 shrink-0 rounded-full object-cover" /><span className="font-bold">BRASA</span></div>
             <div className="flex shrink-0 items-center justify-end gap-2 text-[11px] font-bold text-primary md:text-xs"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" /><span className="relative inline-flex size-2.5 rounded-full bg-primary" /></span>REAL-ON-CHAIN</div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">O BRASA monitora em tempo real quanto de Real (PIX) virou USDC na Solana hoje. Dados 100% on-chain, auditáveis no Solscan.</p>
