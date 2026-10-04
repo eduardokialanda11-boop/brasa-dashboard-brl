@@ -11,12 +11,11 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { CalendarDays, Info, Search } from "lucide-react";
+import { CalendarDays, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import brasaIcon from "@/assets/brasa-b-logo-v2.png.asset.json";
 import { OnchainProofsDialog, type TransactionRow } from "@/components/onchain-proofs-dialog";
 import { Button } from "@/components/ui/button";
-import { Tooltip as InfoTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import { supabase } from "@/lib/supabase";
 import { formatBRL, formatBRLCompact, formatBRLWhole, formatUSDC } from "@/utils/format";
 
@@ -68,14 +67,14 @@ function BrasaAoVivo() {
         if (!active) return;
         if (summaryResult.error) throw summaryResult.error;
         if (transactionResult.error) setProvasErro(true);
-        const allDays = (summaryResult.data ?? []) as DailyVolume[];
+        const allDays = ((summaryResult.data ?? []) as DailyVolume[]).filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.date));
         const latest = allDays.at(-1);
         const requestedDate = dataSelecionada || latest?.date || "";
         const exactDay = allDays.find((row) => row.date === requestedDate);
-        const closestDay = exactDay ?? allDays.reduce<DailyVolume | null>((closest, row) => {
+        const closestDay = exactDay ?? (requestedDate ? allDays.reduce<DailyVolume | null>((closest, row) => {
           if (!closest || Math.abs(new Date(`${row.date}T12:00:00Z`).getTime() - new Date(`${requestedDate}T12:00:00Z`).getTime()) < Math.abs(new Date(`${closest.date}T12:00:00Z`).getTime() - new Date(`${requestedDate}T12:00:00Z`).getTime())) return row;
           return closest;
-        }, null);
+        }, null) : latest ?? null);
         setResumo(closestDay);
         if (!dataSelecionada && latest) setDataSelecionada(latest.date);
         setDataMaisRecente(latest?.date ?? "");
