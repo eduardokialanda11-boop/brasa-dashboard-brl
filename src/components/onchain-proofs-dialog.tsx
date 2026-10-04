@@ -1,5 +1,5 @@
 import { Copy, Download, ExternalLink, ShieldCheck } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 
 import {
   Dialog,
@@ -9,16 +9,9 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
-import { formatUSDC } from "@/utils/format";
+import { formatBRL } from "@/utils/format";
 
 export type TransactionRow = Record<string, unknown>;
-
-type WalletProof = {
-  gatewayWallet: string;
-  totalUsdc: number;
-  txCount: number;
-};
 
 type OnchainProofsDialogProps = {
   open: boolean;
@@ -59,73 +52,10 @@ const csvCell = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""'
 export function OnchainProofsDialog({ open, onOpenChange, rows = [], transactionCount = 0, loading, error }: OnchainProofsDialogProps) {
   const [exporting, setExporting] = useState(false);
   const [feedback, setFeedback] = useState("");
-  const [walletEvents, setWalletEvents] = useState<TransactionRow[]>([]);
-  const [walletCount, setWalletCount] = useState<number | null>(null);
-  const [walletLoading, setWalletLoading] = useState(false);
-  const [walletError, setWalletError] = useState(false);
   const reportedTransactionCount = Number.isFinite(Number(transactionCount)) ? Number(transactionCount) : 0;
-  const safeTransactionCount = walletCount && walletCount > 0
-    ? walletCount
-    : reportedTransactionCount > 0
-      ? reportedTransactionCount
-      : 5027;
+  const safeTransactionCount = reportedTransactionCount > 0 ? reportedTransactionCount : rows.length;
   const signatures = rows.map((row) => textFrom(row, ["signature"])).filter(Boolean);
   const signedRows = rows.filter((row) => Boolean(textFrom(row, ["signature"])));
-  const hasMissingSignature = walletEvents.some((row) => !textFrom(row, ["signature"]));
-
-  useEffect(() => {
-    if (!open || walletEvents.length > 0) return;
-    let active = true;
-
-    async function loadWalletProofs() {
-      setWalletLoading(true);
-      setWalletError(false);
-      const allEvents: TransactionRow[] = [];
-      let from = 0;
-      const pageSize = 1000;
-
-      while (true) {
-        const { data, error: fetchError, count } = await supabase
-          .from("pix_onchain_events")
-          .select("signature, gateway_wallet, amount_usdc", { count: "exact" })
-          .order("block_time", { ascending: false })
-          .range(from, from + pageSize - 1);
-        if (!active) return;
-        if (fetchError) {
-          setWalletError(true);
-          setWalletLoading(false);
-          return;
-        }
-        const page = (data ?? []) as TransactionRow[];
-        allEvents.push(...page);
-        if (count != null) setWalletCount(count);
-        if (page.length < pageSize) break;
-        from += pageSize;
-      }
-
-      if (!active) return;
-      setWalletEvents(allEvents);
-      setWalletLoading(false);
-    }
-
-    void loadWalletProofs();
-    return () => {
-      active = false;
-    };
-  }, [open, walletEvents.length]);
-
-  const walletProofs = useMemo(() => {
-    const grouped = new Map<string, WalletProof>();
-    walletEvents.forEach((row) => {
-      const gatewayWallet = textFrom(row, ["gateway_wallet"]);
-      if (!gatewayWallet) return;
-      const current = grouped.get(gatewayWallet) ?? { gatewayWallet, totalUsdc: 0, txCount: 0 };
-      current.totalUsdc += numberFrom(row, ["amount_usdc"]);
-      current.txCount += 1;
-      grouped.set(gatewayWallet, current);
-    });
-    return [...grouped.values()].sort((a, b) => b.totalUsdc - a.totalUsdc).slice(0, 12);
-  }, [walletEvents]);
 
   const copySignatures = async () => {
     const sample = signatures.slice(0, 5);
@@ -138,21 +68,24 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
     setExporting(true);
     setFeedback("");
     const csv = [
-      ["gateway_wallet", "total_usdc", "tx_count", "solscan_account_url"].map(csvCell).join(","),
-      ...walletProofs.map((wallet) => [
-        wallet.gatewayWallet,
-        wallet.totalUsdc,
-        wallet.txCount,
-        `https://solscan.io/account/${wallet.gatewayWallet}`,
+      ["signature", "amount_brl", "block_time", "solscan_tx_url"].map(csvCell).join(","),
+      ...rows.map((row) => {
+        const signature = textFrom(row, ["signature"]);
+        return [
+        signature,
+        numberFrom(row, ["amount_brl"]),
+        textFrom(row, ["block_time"]),
+        signature ? `https://solscan.io/tx/${signature}` : "",
       ].map(csvCell).join(",")),
+      },
     ].join("\r\n");
     const url = URL.createObjectURL(new Blob([`\uFEFF${csv}`], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `brasa-carteiras-${new Date().toISOString().slice(0, 10)}.csv`;
+    link.download = `brasa-provas-${new Date().toISOString().slice(0, 10)}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    setFeedback(`${walletProofs.length.toLocaleString("pt-BR")} carteiras exportadas.`);
+    setFeedback(`${rows.length.toLocaleString("pt-BR")} transações exportadas.`);
     setExporting(false);
   };
 
@@ -166,12 +99,12 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
           </DialogTitle>
           <DialogDescription className="text-left leading-relaxed">
             <strong className="text-foreground">{safeTransactionCount.toLocaleString("pt-BR")} transações auditáveis</strong>
-            {" | 12 carteiras monitoradas | Fonte: Solana RPC + Helius"}
+            {" | últimas transações verificáveis | Fonte: Solana RPC + Helius"}
           </DialogDescription>
           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
-            <Button type="button" onClick={() => void downloadCsv()} disabled={exporting || walletProofs.length === 0}>
+            <Button type="button" onClick={() => void downloadCsv()} disabled={exporting || rows.length === 0}>
               <Download aria-hidden="true" />
-              {exporting ? "Gerando CSV..." : "Baixar CSV das carteiras"}
+              {exporting ? "Gerando CSV..." : "Baixar CSV"}
             </Button>
             <Button type="button" variant="outline" onClick={() => void copySignatures()} disabled={signatures.length === 0}>
               <Copy aria-hidden="true" /> Copiar 5 assinaturas para teste
@@ -181,56 +114,24 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
         </DialogHeader>
 
         <div className="max-h-[62vh] overflow-auto p-5 md:p-6">
-          {loading || walletLoading ? (
+          {loading ? (
             <p className="py-12 text-center text-sm text-muted-foreground">Buscando provas na Solana...</p>
-          ) : error || walletError ? (
+          ) : error ? (
             <div className="rounded-lg border border-highlight/30 bg-accent p-4 text-sm text-highlight">
               A tabela de provas não pôde ser consultada agora. O resumo diário continua disponível.
             </div>
           ) : (
             <div className="space-y-4">
-              {hasMissingSignature || signedRows.length === 0 ? (
+              {signedRows.length < rows.length ? (
                 <div className="rounded-lg border border-highlight/30 bg-accent p-4 text-sm text-highlight">
-                  Transações antigas: auditáveis por carteira no Solscan. Novas transações já terão link direto da assinatura.
+                   Dados antigos sem signature. Novas transações já vêm com link direto do Solscan.
                 </div>
               ) : null}
-              {walletProofs.length > 0 ? (
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[560px] text-left text-sm">
-                    <thead className="text-xs uppercase text-muted-foreground">
-                      <tr className="border-b border-border">
-                        <th className="pb-3 font-medium">Carteira gateway</th>
-                        <th className="pb-3 font-medium">Total recebido</th>
-                        <th className="pb-3 font-medium">Transações</th>
-                        <th className="pb-3 text-right font-medium">Auditoria</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-border">
-                      {walletProofs.map((wallet) => (
-                        <tr key={wallet.gatewayWallet}>
-                          <td className="py-3 font-mono text-xs text-muted-foreground">{shorten(wallet.gatewayWallet)}</td>
-                          <td className="py-3 font-semibold">{formatUSDC(wallet.totalUsdc)}</td>
-                          <td className="py-3 text-muted-foreground">{wallet.txCount.toLocaleString("pt-BR")}</td>
-                          <td className="py-3 text-right">
-                            <Button asChild size="sm" className="bg-proof text-proof-foreground hover:bg-proof/90">
-                              <a href={`https://solscan.io/account/${wallet.gatewayWallet}`} target="_blank" rel="noreferrer">
-                                Ver carteira no Solscan <ExternalLink className="size-3.5" aria-hidden="true" />
-                              </a>
-                            </Button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              ) : (
-                <p className="py-8 text-center text-sm text-muted-foreground">As carteiras aguardam liberação para consulta pública nesta fonte on-chain.</p>
-              )}
               {signedRows.length > 0 ? <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
                 <tr className="border-b border-border">
                   <th className="pb-3 font-medium">Signature</th>
-                  <th className="pb-3 font-medium">USDC</th>
+                  <th className="pb-3 font-medium">BRL</th>
                   <th className="pb-3 font-medium">Horário</th>
                   <th className="pb-3 text-right font-medium">Auditoria</th>
                 </tr>
@@ -242,7 +143,7 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
                   return (
                     <tr key={signature || `transaction-${index}`}>
                       <td className="py-3 font-mono text-xs text-muted-foreground">{shorten(signature)}</td>
-                      <td className="py-3 font-semibold">{formatUSDC(numberFrom(row, ["amount_usdc"]))}</td>
+                       <td className="py-3 font-semibold">{formatBRL(numberFrom(row, ["amount_brl"]))}</td>
                       <td className="py-3 text-muted-foreground">{formatTime(time)}</td>
                       <td className="py-3 text-right">
                         {signature ? (
@@ -255,7 +156,7 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
                   );
                 })}
               </tbody>
-            </table> : null}
+             </table> : <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma assinatura verificável disponível nas últimas transações.</p>}
             </div>
           )}
         </div>

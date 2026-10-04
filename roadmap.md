@@ -1,4 +1,6 @@
 # Roadmap
+- [x] Dashboard consolidado em `daily_summary_brt`, preservando o último dia on-chain disponível
+- [x] Provas limitadas às 20 transações reais mais recentes com link Solscan
 - [x] Resumo alimentado pelo registro mais recente de `historico_ponto`
 - [x] Gráfico alimentado pelos 7 registros mais recentes de `daily_volumes`
 - [x] Estado vazio para a base aguardando o primeiro ETL
