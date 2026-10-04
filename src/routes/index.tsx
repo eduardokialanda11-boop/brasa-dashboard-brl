@@ -13,7 +13,6 @@ import {
 import { Line } from "react-chartjs-2";
 import { Activity, Info, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
-import logo from "@/assets/brasa-logo.jpg.asset.json";
 import { OnchainProofsDialog, type TransactionRow } from "@/components/onchain-proofs-dialog";
 import { Button } from "@/components/ui/button";
 import { Tooltip as InfoTooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
@@ -104,7 +103,7 @@ function BrasaAoVivo() {
     const mediaUltimosTres = ultimosTres.reduce((s, v) => s + v, 0) / Math.max(1, ultimosTres.length); const mediaTresAnteriores = tresAnteriores.reduce((s, v) => s + v, 0) / Math.max(1, tresAnteriores.length);
     return { media, pico, picoData, tendenciaAlta: ultimosTres.length === 3 && tresAnteriores.length === 3 && mediaUltimosTres > mediaTresAnteriores };
   }, [historico]);
-  const chartMaximum = useMemo(() => Math.max(1,...historico.map((item) => asNumber(item.total_brl))) * 1.3, [historico]);
+  const chartMaximum = useMemo(() => Math.max(1,...historico.map((item) => asNumber(item.total_brl) * 1.3)), [historico]);
   const chartProgress = useMemo(() => Math.min(100, Math.round((historico.length / 7) * 100)), [historico]);
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: semana.map((item) => `${formatWeekday(item.date)} ${formatDate(item.date)}`),
@@ -124,7 +123,7 @@ function BrasaAoVivo() {
       <div className="mx-auto w-full max-w-[480px] px-4 py-6 md:max-w-[900px] md:px-8 md:py-10">
         <header className="mb-6 border-b border-border pb-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:flex md:justify-between">
-            <div className="flex min-w-0 items-center gap-3"><img src={logo.url} alt="Logo Brasa" className="size-11 shrink-0 rounded-full object-cover ring-1 ring-border" /><p className="truncate text-sm font-bold md:text-base">BRASA</p></div>
+            <div className="flex min-w-0 items-center gap-3"><div className="size-11 shrink-0 rounded-full bg-primary flex items-center justify-center font-bold text-white">B</div><p className="truncate text-sm font-bold md:text-base">BRASA</p></div>
             <div className="flex shrink-0 items-center justify-end gap-2 text-[11px] font-bold text-primary md:text-xs"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" /><span className="relative inline-flex size-2.5 rounded-full bg-primary" /></span>REAL ON-CHAIN</div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">O BRASA monitora em tempo real quanto de Real (PIX) virou USDC na Solana hoje. Dados 100% on-chain, auditáveis no Solscan.</p>
