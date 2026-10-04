@@ -25,3 +25,4 @@
 - [x] Resumo separado por data selecionável e acumulado histórico real de `daily_volumes`
 - [x] Card semanal com crescimento diário, média, melhor dia e tendência calculados com dados reais
 - [x] Provas antigas consolidadas por carteira gateway, com auditoria no Solscan e CSV agregado
+- [x] Texto final das rampas BR, metodologia da economia e crescimento real contra sete dias atrás

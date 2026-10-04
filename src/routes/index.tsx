@@ -45,6 +45,7 @@ function BrasaAoVivo() {
   const [resumo, setResumo] = useState<DailyVolume | null>(null);
   const [acumulado, setAcumulado] = useState<AccumulatedVolume>({ totalBRL: 0, totalUSDC: 0, txCount: 0 });
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
+  const [crescimentoSeteDias, setCrescimentoSeteDias] = useState<number | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
   const [atualizadoEmCompleto, setAtualizadoEmCompleto] = useState<Date | null>(null);
@@ -60,7 +61,7 @@ function BrasaAoVivo() {
         const [dayResult, totalResult, trendResult, transactionResult] = await Promise.all([
           supabase.from("daily_summary_brt").select("*").order("date", { ascending: false }).limit(1).single(),
           supabase.from("daily_summary_brt").select("total_brl, tx_count"),
-          supabase.from("daily_summary_brt").select("*").order("date", { ascending: false }).limit(7),
+          supabase.from("daily_summary_brt").select("*").order("date", { ascending: false }).limit(8),
           supabase.from("pix_onchain_events").select("signature, amount_brl, block_time").order("block_time", { ascending: false }).limit(20),
         ]);
         if (!active) return;
@@ -70,7 +71,20 @@ function BrasaAoVivo() {
         if (transactionResult.error) setProvasErro(true);
         setResumo((dayResult.data as DailyVolume | null) ?? null);
         const chronological = ((trendResult.data ?? []) as DailyVolume[]).sort((a, b) => a.date.localeCompare(b.date));
-        setHistorico(chronological);
+        const latest = chronological.at(-1);
+        const sevenDaysBefore = latest
+          ? new Date(`${latest.date}T12:00:00Z`)
+          : null;
+        sevenDaysBefore?.setUTCDate(sevenDaysBefore.getUTCDate() - 7);
+        const comparisonDate = sevenDaysBefore?.toISOString().slice(0, 10);
+        const comparison = chronological.find((row) => row.date === comparisonDate);
+        const comparisonBRL = asNumber(comparison?.total_brl);
+        setCrescimentoSeteDias(
+          latest && comparisonBRL > 0
+            ? ((asNumber(latest.total_brl) - comparisonBRL) / comparisonBRL) * 100
+            : null,
+        );
+        setHistorico(chronological.slice(-7));
         const total = (totalResult.data ?? []).reduce((sum, row) => ({
           totalBRL: sum.totalBRL + asNumber(row.total_brl),
           totalUSDC: 0,
@@ -124,7 +138,7 @@ function BrasaAoVivo() {
             <div className="flex items-center gap-2"><img src={brasaIcon.url} alt="" className="size-8 shrink-0 rounded-full object-cover" /><span className="font-bold">BRASA</span></div>
             <div className="flex shrink-0 items-center justify-end gap-2 text-[11px] font-bold text-primary md:text-xs"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" /><span className="relative inline-flex size-2.5 rounded-full bg-primary" /></span>REAL-ON-CHAIN</div>
           </div>
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">O BRASA monitora em tempo real quanto de Real (PIX) virou USDC na Solana hoje. Dados 100% on-chain, auditáveis no Solscan.</p>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">O BRASA monitora em tempo real quanto de Real (PIX) virou USDC nas 12 maiores rampas BR na Solana - dados 100% on-chain auditáveis</p>
           <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"><p>{resumo?.date ? `Referência hoje: ${formatDate(resumo.date)}${resumo.date < brazilDate() ? " (último dado on-chain)" : ""}` : "Aguardando primeiro dado on-chain"}</p>{atualizadoEm && <p className="shrink-0">Atualizado às {atualizadoEm}</p>}</div>
         </header>
         <div className="grid gap-4 md:grid-cols-2">
@@ -165,8 +179,8 @@ function BrasaAoVivo() {
                   <span className="text-2xl font-bold lg:text-3xl">{formatBRLWhole(economiaDiaria)}</span><span className="text-sm font-bold text-primary">3,7%</span>
                 </div>
                 <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground lg:text-sm">
-                  <span>Economia vs bancos - Total: {formatBRL(economiaTotalHistorica)}</span>
-                  <TooltipProvider><InfoTooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="size-5 text-muted-foreground" aria-label="Como a economia é calculada"><Info className="size-4" aria-hidden="true" /></Button></TooltipTrigger><TooltipContent className="max-w-64"><p className="text-xs">Estimativa: volume x 3,7% de spread bancário + IOF. Total histórico auditável: {formatBRL(economiaTotalHistorica)}</p></TooltipContent></InfoTooltip></TooltipProvider>
+                  <span>Economia gerada p/ brasileiros - Total: {formatBRL(economiaTotalHistorica)}</span>
+                  <TooltipProvider><InfoTooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="size-5 shrink-0 text-muted-foreground" aria-label="Como a economia é calculada"><Info className="size-4" aria-hidden="true" /></Button></TooltipTrigger><TooltipContent className="max-w-72"><p className="text-xs">Cálculo: Volume BRL x 3,7% (spread médio BCB Wise/bancos + IOF) - taxa Solana R$0,01 por tx. Fonte: BCB.</p></TooltipContent></InfoTooltip></TooltipProvider>
                 </div>
               </div>
               <div className="py-3">
@@ -196,7 +210,14 @@ function BrasaAoVivo() {
         <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6 md:col-span-2 mt-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold lg:text-xl">Solana está crescendo no Brasil?</h2>
-            {insight?.tendenciaAlta? (<span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Tendência de alta</span>) : (<span className="rounded-full bg-highlight/10 px-2.5 py-1 text-xs font-semibold text-highlight">Histórico ({historico.length}/7 dias reais)</span>)}
+            <div className="flex flex-wrap items-center justify-end gap-2">
+              {crescimentoSeteDias !== null && (
+                <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${crescimentoSeteDias > 0 ? "bg-primary/10 text-primary" : crescimentoSeteDias < 0 ? "bg-destructive/10 text-destructive" : "bg-muted text-muted-foreground"}`}>
+                  {crescimentoSeteDias > 0 ? "▲ +" : crescimentoSeteDias < 0 ? "▼ " : "• "}{crescimentoSeteDias.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}% vs 7 dias atrás
+                </span>
+              )}
+              {insight?.tendenciaAlta? (<span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Tendência de alta</span>) : (<span className="rounded-full bg-highlight/10 px-2.5 py-1 text-xs font-semibold text-highlight">Histórico ({historico.length}/7 dias reais)</span>)}
+            </div>
           </div>
           <div className="mt-4"><div className="mb-1.5 flex justify-between text-[11px] text-muted-foreground"><span>Coleta: {historico.length}/7 dias</span><span>{chartProgress}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${chartProgress}%` }} /></div></div>
           <div className="mt-4 flex h-[200px] items-center justify-center lg:h-[320px]">
