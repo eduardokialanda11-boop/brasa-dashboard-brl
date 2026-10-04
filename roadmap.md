@@ -26,3 +26,4 @@
 - [x] Card semanal com crescimento diário, média, melhor dia e tendência calculados com dados reais
 - [x] Provas antigas consolidadas por carteira gateway, com auditoria no Solscan e CSV agregado
 - [x] Texto final das rampas BR, metodologia da economia e crescimento real contra sete dias atrás
+- [x] Economia detalhada, seletor de data com fallback real e gráfico com tooltip, tendência e períodos

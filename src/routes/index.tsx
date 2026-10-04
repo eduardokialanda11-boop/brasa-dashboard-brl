@@ -11,7 +11,7 @@ import {
   type ChartOptions,
 } from "chart.js";
 import { Line } from "react-chartjs-2";
-import { Activity, Info, Search } from "lucide-react";
+import { CalendarDays, Info, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import brasaIcon from "@/assets/brasa-b-logo-v2.png.asset.json";
 import { OnchainProofsDialog, type TransactionRow } from "@/components/onchain-proofs-dialog";
@@ -45,6 +45,9 @@ function BrasaAoVivo() {
   const [resumo, setResumo] = useState<DailyVolume | null>(null);
   const [acumulado, setAcumulado] = useState<AccumulatedVolume>({ totalBRL: 0, totalUSDC: 0, txCount: 0 });
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
+  const [dataSelecionada, setDataSelecionada] = useState("");
+  const [dataMaisRecente, setDataMaisRecente] = useState("");
+  const [avisoData, setAvisoData] = useState<string | null>(null);
   const [crescimentoSeteDias, setCrescimentoSeteDias] = useState<number | null>(null);
   const [carregando, setCarregando] = useState(true);
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
@@ -58,20 +61,26 @@ function BrasaAoVivo() {
     let active = true;
     async function fetchDashboard() {
       try {
-        const [dayResult, totalResult, trendResult, transactionResult] = await Promise.all([
-          supabase.from("daily_summary_brt").select("*").order("date", { ascending: false }).limit(1).single(),
-          supabase.from("daily_summary_brt").select("total_brl, tx_count"),
-          supabase.from("daily_summary_brt").select("*").order("date", { ascending: false }).limit(8),
+        const [summaryResult, transactionResult] = await Promise.all([
+          supabase.from("daily_summary_brt").select("*").order("date", { ascending: true }),
           supabase.from("pix_onchain_events").select("signature, amount_brl, block_time").order("block_time", { ascending: false }).limit(20),
         ]);
         if (!active) return;
-        if (dayResult.error && dayResult.error.code !== "PGRST116") throw dayResult.error;
-        if (totalResult.error) throw totalResult.error;
-        if (trendResult.error) throw trendResult.error;
+        if (summaryResult.error) throw summaryResult.error;
         if (transactionResult.error) setProvasErro(true);
-        setResumo((dayResult.data as DailyVolume | null) ?? null);
-        const chronological = ((trendResult.data ?? []) as DailyVolume[]).sort((a, b) => a.date.localeCompare(b.date));
-        const latest = chronological.at(-1);
+        const allDays = (summaryResult.data ?? []) as DailyVolume[];
+        const latest = allDays.at(-1);
+        const requestedDate = dataSelecionada || latest?.date || "";
+        const exactDay = allDays.find((row) => row.date === requestedDate);
+        const closestDay = exactDay ?? allDays.reduce<DailyVolume | null>((closest, row) => {
+          if (!closest || Math.abs(new Date(`${row.date}T12:00:00Z`).getTime() - new Date(`${requestedDate}T12:00:00Z`).getTime()) < Math.abs(new Date(`${closest.date}T12:00:00Z`).getTime() - new Date(`${requestedDate}T12:00:00Z`).getTime())) return row;
+          return closest;
+        }, null);
+        setResumo(closestDay);
+        if (!dataSelecionada && latest) setDataSelecionada(latest.date);
+        setDataMaisRecente(latest?.date ?? "");
+        setAvisoData(requestedDate && !exactDay && closestDay ? `Sem coleta nesse dia - coleta iniciou em 27/09. Exibindo o dia mais próximo: ${formatDate(closestDay.date)}.` : null);
+        const chronological = allDays.slice(-8);
         const sevenDaysBefore = latest
           ? new Date(`${latest.date}T12:00:00Z`)
           : null;
@@ -85,7 +94,7 @@ function BrasaAoVivo() {
             : null,
         );
         setHistorico(chronological.slice(-7));
-        const total = (totalResult.data ?? []).reduce((sum, row) => ({
+        const total = allDays.reduce((sum, row) => ({
           totalBRL: sum.totalBRL + asNumber(row.total_brl),
           totalUSDC: 0,
           txCount: sum.txCount + asNumber(row.tx_count),
@@ -98,7 +107,7 @@ function BrasaAoVivo() {
     fetchDashboard(); const refreshInterval = window.setInterval(() => { fetchDashboard(); }, 60_000);
     const realtimeChannel = supabase.channel("daily_summary_brt_live").on("postgres_changes", { event: "*", schema: "public", table: "daily_summary_brt" }, () => { fetchDashboard(); }).subscribe();
     return () => { active = false; window.clearInterval(refreshInterval); supabase.removeChannel(realtimeChannel); };
-  }, []);
+  }, [dataSelecionada]);
 
   const totalBrl = asNumber(resumo?.total_brl); const totalUsdc = asNumber(resumo?.total_usdc); const transacoes = asNumber(resumo?.tx_count);
   const dolarInformado = asNumber(resumo?.usd_brl_rate); const dolar = dolarInformado > 0? dolarInformado : totalUsdc > 0? totalBrl / totalUsdc : null;
@@ -113,19 +122,32 @@ function BrasaAoVivo() {
     const media = total / historico.length; const pico = Math.max(...volumes); const picoIndex = volumes.indexOf(pico); const picoData = historico[picoIndex]?.date;
     const ultimosTres = volumes.slice(-3); const tresAnteriores = volumes.slice(-6, -3);
     const mediaUltimosTres = ultimosTres.reduce((s, v) => s + v, 0) / Math.max(1, ultimosTres.length); const mediaTresAnteriores = tresAnteriores.reduce((s, v) => s + v, 0) / Math.max(1, tresAnteriores.length);
-    return { media, pico, picoData, tendenciaAlta: ultimosTres.length === 3 && tresAnteriores.length === 3 && mediaUltimosTres > mediaTresAnteriores };
+    const primeiro = volumes[0] ?? 0; const ultimo = volumes.at(-1) ?? 0;
+    const crescimento = historico.length === 7 && primeiro > 0 ? ((ultimo - primeiro) / primeiro) * 100 : null;
+    return { media, pico, picoData, crescimento, tendenciaAlta: ultimosTres.length === 3 && tresAnteriores.length === 3 && mediaUltimosTres > mediaTresAnteriores };
   }, [historico]);
   const chartMaximum = useMemo(() => Math.max(1,...historico.map((item) => asNumber(item.total_brl) * 1.3)), [historico]);
   const chartProgress = useMemo(() => Math.min(100, Math.round((historico.length / 7) * 100)), [historico]);
+  const tendencia = useMemo(() => {
+    const values = historico.map((item) => asNumber(item.total_brl));
+    if (values.length < 2) return values;
+    const n = values.length; const sumX = (n * (n - 1)) / 2; const sumY = values.reduce((sum, value) => sum + value, 0);
+    const sumXY = values.reduce((sum, value, index) => sum + index * value, 0); const sumX2 = values.reduce((sum, _value, index) => sum + index * index, 0);
+    const slope = (n * sumXY - sumX * sumY) / (n * sumX2 - sumX * sumX); const intercept = (sumY - slope * sumX) / n;
+    return values.map((_value, index) => Math.max(0, intercept + slope * index));
+  }, [historico]);
   const chartData = useMemo<ChartData<"line">>(() => ({
     labels: semana.map((item) => `${formatWeekday(item.date)} ${formatDate(item.date)}`),
-    datasets: [{ label: "Volume", data: semana.map((item) => asNumber(item.registro.total_brl)), borderColor: "#22c55e", backgroundColor: "rgba(34,197,94,.10)", borderWidth: 3, pointBackgroundColor: "#22c55e", pointBorderColor: "#22c55e", pointRadius: 4, pointHoverRadius: 6, fill: true, tension: 0.32 }],
-  }), [semana]);
+    datasets: [
+      { label: "Volume", data: semana.map((item) => asNumber(item.registro.total_brl)), borderColor: "#22c55e", backgroundColor: "rgba(34,197,94,.10)", borderWidth: 3, pointBackgroundColor: "#22c55e", pointBorderColor: "#22c55e", pointRadius: 4, pointHoverRadius: 7, fill: true, tension: 0.32 },
+      { label: "Tendência", data: tendencia, borderColor: "rgba(250,204,21,.8)", borderWidth: 2, borderDash: [7, 6], pointRadius: 0, pointHoverRadius: 0, fill: false, tension: 0 },
+    ],
+  }), [semana, tendencia]);
   const chartOptions = useMemo<ChartOptions<"line">>(() => ({
-    responsive: true, maintainAspectRatio: false, interaction: { intersect: false, mode: "index" },
-    plugins: { legend: { display: false }, tooltip: { backgroundColor: "#142e23", callbacks: {
-      title: (items) => { const item = items[0]; if (!item) return ""; const dia = semana[item.dataIndex]; return dia? `${formatDate(dia.date)} (${formatWeekday(dia.date)})` : ""; },
-      label: (context) => { const registro = semana[context.dataIndex]?.registro; return registro? `${formatBRL(asNumber(registro.total_brl))} (${formatUSDC(asNumber(registro.total_usdc))} USDC)` : ""; },
+    responsive: true, maintainAspectRatio: false, events: ["mousemove", "mouseout", "click", "touchstart"], interaction: { intersect: false, mode: "index" },
+    plugins: { legend: { display: false }, tooltip: { filter: (item) => item.datasetIndex === 0, backgroundColor: "#142e23", callbacks: {
+      title: () => "",
+      label: (context) => { const registro = semana[context.dataIndex]?.registro; return registro? `${formatDate(registro.date)}: ${formatBRL(asNumber(registro.total_brl))} (${formatUSDC(asNumber(registro.total_usdc))} USDC) - ${asNumber(registro.tx_count).toLocaleString("pt-BR")} txs` : ""; },
     } } },
     scales: { x: { grid: { display: false }, ticks: { color: "#8fb09c", callback: function (_value, index) { const item = semana[index]; return item? [formatDate(item.date), formatWeekday(item.date)] : ""; } } }, y: { beginAtZero: true, max: chartMaximum, grid: { color: "rgba(255,255,255,.06)" }, ticks: { color: "#8fb09c", callback: (value) => formatBRLCompact(Number(value)) } } },
   }), [chartMaximum, semana]);
@@ -139,7 +161,18 @@ function BrasaAoVivo() {
             <div className="flex shrink-0 items-center justify-end gap-2 text-[11px] font-bold text-primary md:text-xs"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" /><span className="relative inline-flex size-2.5 rounded-full bg-primary" /></span>REAL-ON-CHAIN</div>
           </div>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">O BRASA monitora em tempo real quanto de Real (PIX) virou USDC nas 12 maiores rampas BR na Solana - dados 100% on-chain auditáveis</p>
-          <div className="mt-3 flex items-center justify-between gap-3 text-xs text-muted-foreground"><p>{resumo?.date ? `Referência hoje: ${formatDate(resumo.date)}${resumo.date < brazilDate() ? " (último dado on-chain)" : ""}` : "Aguardando primeiro dado on-chain"}</p>{atualizadoEm && <p className="shrink-0">Atualizado às {atualizadoEm}</p>}</div>
+          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+              <p>{resumo?.date ? `Referência: ${formatDate(resumo.date)}${resumo.date < brazilDate() ? " (dado on-chain)" : ""}` : "Aguardando primeiro dado on-chain"}</p>
+              <label className="relative flex h-9 items-center gap-2 rounded-md border border-input bg-card px-3 text-foreground shadow-sm transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
+                <CalendarDays className="size-4 text-primary" aria-hidden="true" />
+                <span className="sr-only">Escolher data do resumo</span>
+                <input type="date" value={dataSelecionada} max={dataMaisRecente || undefined} onChange={(event) => setDataSelecionada(event.target.value)} className="date-picker-premium min-w-0 bg-transparent text-xs font-semibold outline-none" aria-label="Escolher data do resumo" />
+              </label>
+            </div>
+            {atualizadoEm && <p className="shrink-0 text-xs text-muted-foreground">Atualizado às {atualizadoEm}</p>}
+          </div>
+          {avisoData && <p className="mt-2 text-xs font-medium text-highlight">{avisoData}</p>}
         </header>
         <div className="grid gap-4 md:grid-cols-2">
         <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
@@ -175,13 +208,10 @@ function BrasaAoVivo() {
                 <Button variant="outline" size="sm" onClick={() => setProvasAbertas(true)}><Search className="size-4 shrink-0" aria-hidden="true" /> Ver provas</Button>
               </div>
               <div className="py-3">
-                <div className="flex flex-wrap items-baseline gap-3">
-                  <span className="text-2xl font-bold lg:text-3xl">{formatBRLWhole(economiaDiaria)}</span><span className="text-sm font-bold text-primary">3,7%</span>
-                </div>
-                <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-muted-foreground lg:text-sm">
-                  <span>Economia gerada p/ brasileiros - Total: {formatBRL(economiaTotalHistorica)}</span>
-                  <TooltipProvider><InfoTooltip><TooltipTrigger asChild><Button variant="ghost" size="icon" className="size-5 shrink-0 text-muted-foreground" aria-label="Como a economia é calculada"><Info className="size-4" aria-hidden="true" /></Button></TooltipTrigger><TooltipContent className="max-w-72"><p className="text-xs">Cálculo: Volume BRL x 3,7% (spread médio BCB Wise/bancos + IOF) - taxa Solana R$0,01 por tx. Fonte: BCB.</p></TooltipContent></InfoTooltip></TooltipProvider>
-                </div>
+                <p className="text-[11px] font-bold uppercase text-muted-foreground">Economia Gerada</p>
+                <p className="mt-1.5 text-2xl font-bold lg:text-3xl">{formatBRLWhole(economiaDiaria)}</p>
+                <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">+3,7% vs bancos tradicionais</span>
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground lg:text-xs">Cálculo: {formatBRL(economiaTotalHistorica)} economizados (Spread bancário 5,19 vs PTAX {dolar?.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? "-"} on-chain)</p>
               </div>
               <div className="py-3">
                 <p className="text-2xl font-bold text-highlight lg:text-3xl">{(pontos/1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil pontos</p>
@@ -219,13 +249,19 @@ function BrasaAoVivo() {
               {insight?.tendenciaAlta? (<span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">Tendência de alta</span>) : (<span className="rounded-full bg-highlight/10 px-2.5 py-1 text-xs font-semibold text-highlight">Histórico ({historico.length}/7 dias reais)</span>)}
             </div>
           </div>
+          <div className="mt-4 flex items-center gap-1 rounded-md border border-border bg-background/40 p-1" aria-label="Período do gráfico">
+            <Button size="sm" className="h-7 bg-primary px-3 text-primary-foreground hover:bg-primary/90">7D</Button>
+            <Button variant="ghost" size="sm" className="h-7 px-3" disabled title="Disponível após 30 dias de coleta">30D</Button>
+            <Button variant="ghost" size="sm" className="h-7 px-3" disabled title="Disponível após mais dias de coleta">Tudo</Button>
+            <span className="ml-auto hidden text-[10px] text-muted-foreground sm:inline">30D disponível após 30 dias de coleta</span>
+          </div>
           <div className="mt-4"><div className="mb-1.5 flex justify-between text-[11px] text-muted-foreground"><span>Coleta: {historico.length}/7 dias</span><span>{chartProgress}%</span></div><div className="h-1.5 overflow-hidden rounded-full bg-muted"><div className="h-full rounded-full bg-primary transition-all" style={{ width: `${chartProgress}%` }} /></div></div>
           <div className="mt-4 flex h-[200px] items-center justify-center lg:h-[320px]">
             {historico.length > 0? (<Line data={chartData} options={chartOptions} />) : (<p className="text-sm text-muted-foreground">Base pronta - aguardando primeiro ETL...</p>)}
           </div>
           {insight && (
             <div className="mt-4 rounded-lg bg-secondary p-3 text-xs leading-relaxed md:text-sm">
-              <p className="text-foreground">Média 7 dias: <strong className="text-foreground">{formatBRLWhole(insight.media)}</strong> | Melhor dia: {insight.picoData? formatDate(insight.picoData) : "-"} com <strong className="text-foreground">{formatBRLCompact(insight.pico)}</strong></p>
+              <p className="text-foreground">Média 7 dias: <strong className="text-foreground">{formatBRLCompact(insight.media)}</strong> | Melhor dia: {insight.picoData? formatDate(insight.picoData) : "-"} com <strong className="text-foreground">{formatBRLCompact(insight.pico)}</strong>{insight.crescimento !== null ? <> | Crescimento: <strong className={insight.crescimento >= 0 ? "text-primary" : "text-destructive"}>{insight.crescimento >= 0 ? "+" : ""}{insight.crescimento.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}%</strong></> : null}</p>
               {historico.length < 6 && (<p className="mt-2 text-muted-foreground">A tendência será calculada após seis dias reais de coleta.</p>)}
             </div>
           )}

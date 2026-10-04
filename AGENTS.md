@@ -10,7 +10,7 @@
 <!-- LOVABLE:END -->
 
 - Keep all dashboard currency presentation in `src/utils/format.ts` so cards and charts use identical locale-safe formatting.
-- Use `daily_summary_brt` exclusively for the daily card, accumulated totals, and seven-day chart; the daily card always uses its latest available date.
+- Use `daily_summary_brt` exclusively for the daily card, accumulated totals, and seven-day chart; date selection falls back to the nearest available real day.
 - Refresh by rereading `daily_summary_brt` every 60 seconds and after its realtime changes; never increment source values in browser state.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
 - Treat only the 20 latest `pix_onchain_events` rows as the proof source, reading signature, BRL amount, and block time without substitutes.
