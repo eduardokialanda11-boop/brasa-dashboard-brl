@@ -168,6 +168,18 @@
   }
 }
 
+@layer components {
+  .date-picker-premium {
+    color-scheme: dark;
+  }
+
+  .date-picker-premium::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    filter: invert(78%) sepia(58%) saturate(584%) hue-rotate(82deg) brightness(88%);
+    opacity: 0.9;
+  }
+}
+
 @utility grid-texture {
   background-image:
     linear-gradient(to right, oklch(1 0 0 / 2.5%) 1px, transparent 1px),
