@@ -1,6 +1,6 @@
 import { expect, test } from 'bun:test';
-import { eventRewards, summarizeEvents, type OnchainEvent } from './onchain-summary';
-const event = (overrides: Partial<OnchainEvent> = {}): OnchainEvent => ({ signature: null, amount_brl: 100, amount_usdc: 20, block_time: '2026-10-08T00:00:00Z', origem: 'gateway_direto', ...overrides });
+import { eventRewards, summarizeEvents } from './onchain-summary';
+const event = (overrides = {}) => ({ signature: null, amount_brl: 100, amount_usdc: 20, block_time: '2026-10-08T00:00:00Z', origem: 'gateway_direto', ...overrides });
 test('daily totals include midnight and exclude previous dates', () => {
   const result = summarizeEvents([event(), event({ block_time: '2026-10-07T23:59:59Z', amount_brl: 200 })], '2026-10-08');
   expect(result.today).toMatchObject({ total_brl: 100, total_usdc: 20, tx_count: 1 });

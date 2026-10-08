@@ -1,5 +1,6 @@
 # Roadmap
-- [ ] Trocar fonte por eventos reais sem filtros, preservar CSS e validar contagem pública e cálculos
+- [x] Fonte trocada por eventos reais sem filtros, CSS preservado e cálculos testados
+- [ ] Confirmar 49 eventos públicos — bloqueado: acesso anon retorna 0 sem erro
 - [x] Dashboard consolidado em `daily_summary_brt`, preservando o último dia on-chain disponível
 - [x] Provas limitadas às 20 transações reais mais recentes com link Solscan
 - [x] Resumo alimentado pelo registro mais recente de `historico_ponto`
