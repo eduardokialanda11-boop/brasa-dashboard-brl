@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { formatBRL } from "@/utils/format";
+import { formatBRL, formatUSDC } from "@/utils/format";
 
 export type TransactionRow = Record<string, unknown>;
 
@@ -68,12 +68,14 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
     setExporting(true);
     setFeedback("");
     const csv = [
-      ["signature", "amount_brl", "block_time", "solscan_tx_url"].map(csvCell).join(","),
+      ["signature", "amount_brl", "amount_usdc", "origem", "block_time", "solscan_tx_url"].map(csvCell).join(","),
       ...rows.map((row) => {
         const signature = textFrom(row, ["signature"]);
         return [
           signature,
           numberFrom(row, ["amount_brl"]),
+          numberFrom(row, ["amount_usdc"]),
+          textFrom(row, ["origem"]),
           textFrom(row, ["block_time"]),
           signature ? `https://solscan.io/tx/${signature}` : "",
         ].map(csvCell).join(",");
@@ -99,8 +101,10 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
           </DialogTitle>
           <DialogDescription className="text-left leading-relaxed">
             <strong className="text-foreground">{safeTransactionCount.toLocaleString("pt-BR")} transações auditáveis</strong>
-            {" | últimas transações verificáveis | Fonte: Solana RPC + Helius"}
+            {" | todos os eventos registrados"}
           </DialogDescription>
+          <p className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-left text-xs font-semibold text-primary">Dados on-chain, auditáveis em tempo real na Solana — verifique cada assinatura no Solscan.</p>
+          <p className="text-left text-xs text-muted-foreground">PIX → USDC resume os valores registrados; não é um memo decodificado. A origem informada não comprova, sozinha, o pagamento PIX nem a ausência de APIs privadas.</p>
           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
             <Button type="button" onClick={() => void downloadCsv()} disabled={exporting || rows.length === 0}>
               <Download aria-hidden="true" />
@@ -124,39 +128,45 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
             <div className="space-y-4">
               {signedRows.length < rows.length ? (
                 <div className="rounded-lg border border-highlight/30 bg-accent p-4 text-sm text-highlight">
-                   Dados antigos sem signature. Novas transações já vêm com link direto do Solscan.
+                   Registros sem signature não possuem prova de transação disponível no Solscan.
                 </div>
               ) : null}
-              {signedRows.length > 0 ? <table className="w-full min-w-[560px] text-left text-sm">
+              {rows.length > 0 ? <table className="w-full min-w-[560px] text-left text-sm">
               <thead className="text-xs uppercase text-muted-foreground">
                 <tr className="border-b border-border">
-                  <th className="pb-3 font-medium">Signature</th>
-                  <th className="pb-3 font-medium">BRL</th>
-                  <th className="pb-3 font-medium">Horário</th>
-                  <th className="pb-3 text-right font-medium">Auditoria</th>
+                  <th className="pb-3 font-medium">Hora</th>
+                  <th className="pb-3 font-medium">Valor BRL</th>
+                  <th className="pb-3 font-medium">Valor USDC</th>
+                  <th className="pb-3 font-medium">Origem</th>
+                  <th className="pb-3 text-right font-medium">Prova</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-border">
-                {signedRows.map((row, index) => {
+                {rows.map((row, index) => {
                   const signature = textFrom(row, ["signature"]);
                   const time = textFrom(row, ["block_time"]);
+                  const origin = textFrom(row, ["origem"]);
+                  const originLabel = origin === "debridge_brla" ? "BRLA (Real Digital) -> USDC via deBridge" : origin === "gateway_direto" ? "PIX Direto -> USDC" : origin || "Origem não informada";
                   return (
-                    <tr key={signature || `transaction-${index}`}>
-                      <td className="py-3 font-mono text-xs text-muted-foreground">{shorten(signature)}</td>
-                       <td className="py-3 font-semibold">{formatBRL(numberFrom(row, ["amount_brl"]))}</td>
+                    <tr key={`${signature}-${index}`}>
                       <td className="py-3 text-muted-foreground">{formatTime(time)}</td>
+                       <td className="py-3 font-semibold">{formatBRL(numberFrom(row, ["amount_brl"]))}</td>
+                      <td className="py-3 font-semibold">{formatUSDC(numberFrom(row, ["amount_usdc"]))} USDC</td>
+                      <td className="py-3 text-xs text-muted-foreground">{originLabel}</td>
                       <td className="py-3 text-right">
                         {signature ? (
-                          <a className="inline-flex items-center gap-1 rounded-md bg-proof px-3 py-2 text-xs font-semibold text-proof-foreground transition-opacity hover:opacity-90" href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noreferrer">
+                          <a className="inline-flex items-center gap-1 rounded-md bg-proof px-3 py-2 text-xs font-semibold text-proof-foreground transition-opacity hover:opacity-90" href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noopener noreferrer" title={signature}>
                             Ver no Solscan <ExternalLink className="size-3.5" aria-hidden="true" />
                           </a>
                         ) : <span className="text-muted-foreground">Sem hash</span>}
+                        <p className="mt-1 text-xs text-muted-foreground">PIX {formatBRL(numberFrom(row, ["amount_brl"]))} -&gt; USDC</p>
+                        <p className="mt-1 font-mono text-xs text-muted-foreground">{shorten(signature)}</p>
                       </td>
                     </tr>
                   );
                 })}
               </tbody>
-             </table> : <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma assinatura verificável disponível nas últimas transações.</p>}
+             </table> : <p className="py-8 text-center text-sm text-muted-foreground">Nenhuma transação disponível na fonte de provas.</p>}
             </div>
           )}
         </div>

@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Modal com todos os eventos reais, BRL/USDC, origem, links Solscan e resumo sem inventar memo
 - [x] Textos alinhados ao objetivo PIX → USDC, mantendo visual, CSS e valores reais
 - [x] Fonte trocada por eventos reais sem filtros, CSS preservado e cálculos testados
 - [x] Validar leitura pública — consulta anterior confirmou 51 eventos reais (40 gateway_direto + 11 debridge_brla), em vez dos 49 esperados

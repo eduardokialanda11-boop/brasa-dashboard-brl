@@ -17,3 +17,7 @@ test('economy equals 3.7 percent of summed BRL', () => {
 test('points equal summed BRL multiplied by 100', () => {
   expect(eventRewards(1000).points).toBe(100000);
 });
+test('all 51 current proof events count, including rows without signatures', () => {
+  const rows = [...Array.from({ length: 40 }, () => event()), ...Array.from({ length: 11 }, () => event({ origem: 'debridge_brla' }))];
+  expect(summarizeEvents(rows, '2026-10-08').accumulated.txCount).toBe(51);
+});
