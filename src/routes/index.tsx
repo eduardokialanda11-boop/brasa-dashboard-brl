@@ -17,11 +17,11 @@ import brasaIcon from "@/assets/brasa-b-logo-v2.png.asset.json";
 import { OnchainProofsDialog, type TransactionRow } from "@/components/onchain-proofs-dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import { eventRewards, summarizeEvents, type DailyVolume, type OnchainEvent } from "@/utils/onchain-summary";
 import { formatBRL, formatBRLCompact, formatBRLWhole, formatUSDC } from "@/utils/format";
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Filler, Tooltip);
 
-type DailyVolume = { date: string; total_brl: number | string | null; total_usdc: number | string | null; tx_count: number | string | null; usd_brl_rate: number | string | null; };
 type AccumulatedVolume = { totalBRL: number; totalUSDC: number; txCount: number; };
 const asNumber = (value: number | string | null | undefined) => Number(value?? 0);
 const formatDate = (value: string) => new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit" }).format(new Date(`${value}T12:00:00`));
@@ -60,25 +60,39 @@ function BrasaAoVivo() {
     let active = true;
     async function fetchDashboard() {
       try {
-        const [summaryResult, transactionResult] = await Promise.all([
-          supabase.from("daily_summary_brt").select("*").order("date", { ascending: true }),
+        const [countResult, transactionResult] = await Promise.all([
+          supabase.from("pix_onchain_events").select("signature", { count: "exact", head: true }),
           supabase.from("pix_onchain_events").select("signature, amount_brl, block_time").order("block_time", { ascending: false }).limit(20),
         ]);
         if (!active) return;
-        if (summaryResult.error) throw summaryResult.error;
-        if (transactionResult.error) setProvasErro(true);
-        const allDays = ((summaryResult.data ?? []) as DailyVolume[]).filter((row) => /^\d{4}-\d{2}-\d{2}$/.test(row.date));
+        if (countResult.error) throw countResult.error;
+        const events: OnchainEvent[] = [];
+        for (let offset = 0; ; offset += 1000) {
+          const result = await supabase.from("pix_onchain_events")
+            .select("signature, amount_brl, amount_usdc, block_time, origem")
+            .order("block_time", { ascending: true }).order("signature", { ascending: true })
+            .range(offset, offset + 999);
+          if (!active) return;
+          if (result.error) throw result.error;
+          const page = (result.data ?? []) as OnchainEvent[];
+          events.push(...page);
+          if (page.length < 1000) break;
+        }
+        setProvasErro(Boolean(transactionResult.error));
+        const currentDate = new Date().toISOString().slice(0, 10);
+        const summary = summarizeEvents(events, currentDate);
+        const allDays = summary.days;
+        console.info("BRASA leitura pública", { count: countResult.count, loaded: events.length, origins: summary.origins });
         const latest = allDays.at(-1);
-        const requestedDate = dataSelecionada || latest?.date || "";
+        const requestedDate = dataSelecionada || currentDate;
         const exactDay = allDays.find((row) => row.date === requestedDate);
         const closestDay = exactDay ?? (requestedDate ? allDays.reduce<DailyVolume | null>((closest, row) => {
           if (!closest || Math.abs(new Date(`${row.date}T12:00:00Z`).getTime() - new Date(`${requestedDate}T12:00:00Z`).getTime()) < Math.abs(new Date(`${closest.date}T12:00:00Z`).getTime() - new Date(`${requestedDate}T12:00:00Z`).getTime())) return row;
           return closest;
         }, null) : latest ?? null);
-        setResumo(closestDay);
-        if (!dataSelecionada && latest) setDataSelecionada(latest.date);
-        setDataMaisRecente(latest?.date ?? "");
-        setAvisoData(requestedDate && !exactDay && closestDay ? `Sem coleta nesse dia - coleta iniciou em 27/09. Exibindo o dia mais próximo: ${formatDate(closestDay.date)}.` : null);
+        setResumo(requestedDate === currentDate ? summary.today : closestDay);
+        setDataMaisRecente(currentDate);
+        setAvisoData(requestedDate !== currentDate && !exactDay && closestDay ? `Sem coleta nesse dia - coleta iniciou em ${formatDate(allDays[0]?.date ?? closestDay.date)}. Exibindo o dia mais próximo: ${formatDate(closestDay.date)}.` : null);
         const chronological = allDays.slice(-8);
         const sevenDaysBefore = latest
           ? new Date(`${latest.date}T12:00:00Z`)
@@ -93,24 +107,20 @@ function BrasaAoVivo() {
             : null,
         );
         setHistorico(chronological.slice(-7));
-        const total = allDays.reduce((sum, row) => ({
-          totalBRL: sum.totalBRL + asNumber(row.total_brl),
-          totalUSDC: 0,
-          txCount: sum.txCount + asNumber(row.tx_count),
-        }), { totalBRL: 0, totalUSDC: 0, txCount: 0 });
-        setAcumulado(total);
+        setAcumulado(summary.accumulated);
         setTransactions((transactionResult.data ?? []) as TransactionRow[]);
         const now = new Date(); setAtualizadoEm(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" })); setAtualizadoEmCompleto(now);
       } catch (err) { console.error(err); setProvasErro(true); } finally { if (active) { setCarregando(false); setProvasCarregando(false); } }
     }
     fetchDashboard(); const refreshInterval = window.setInterval(() => { fetchDashboard(); }, 60_000);
-    const realtimeChannel = supabase.channel("daily_summary_brt_live").on("postgres_changes", { event: "*", schema: "public", table: "daily_summary_brt" }, () => { fetchDashboard(); }).subscribe();
+    const realtimeChannel = supabase.channel("pix_onchain_events_live").on("postgres_changes", { event: "*", schema: "public", table: "pix_onchain_events" }, () => { fetchDashboard(); }).subscribe();
     return () => { active = false; window.clearInterval(refreshInterval); supabase.removeChannel(realtimeChannel); };
   }, [dataSelecionada]);
 
   const totalBrl = asNumber(resumo?.total_brl); const totalUsdc = asNumber(resumo?.total_usdc); const transacoes = asNumber(resumo?.tx_count);
   const dolarInformado = asNumber(resumo?.usd_brl_rate); const dolar = dolarInformado > 0? dolarInformado : totalUsdc > 0? totalBrl / totalUsdc : null;
-  const economiaDiaria = totalBrl * 0.037; const economiaTotalHistorica = acumulado.totalBRL * 0.037; const pontos = totalBrl / 100;
+  const rewards = eventRewards(acumulado.totalBRL);
+  const economiaDiaria = rewards.economy; const economiaTotalHistorica = rewards.economy; const pontos = rewards.points;
   const syncDateTime = atualizadoEmCompleto? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" }).format(atualizadoEmCompleto) : "-";
   const nextSync = atualizadoEmCompleto? new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date(atualizadoEmCompleto.getTime() + 60_000)) : "-";
   const variacao = useMemo(() => { if (historico.length < 2) return null; const prev = asNumber(historico[historico.length - 2]?.total_brl); const curr = asNumber(historico[historico.length - 1]?.total_brl); return prev > 0? ((curr - prev) / prev) * 100 : null; }, [historico]);
@@ -166,7 +176,7 @@ function BrasaAoVivo() {
               <label className="relative flex h-9 items-center gap-2 rounded-md border border-input bg-card px-3 text-foreground shadow-sm transition-colors focus-within:border-primary focus-within:ring-1 focus-within:ring-primary">
                 <CalendarDays className="size-4 text-primary" aria-hidden="true" />
                 <span className="sr-only">Escolher data do resumo</span>
-                <input type="date" value={dataSelecionada} max={dataMaisRecente || undefined} onChange={(event) => setDataSelecionada(event.target.value)} className="date-picker-premium min-w-0 bg-transparent text-xs font-semibold outline-none" aria-label="Escolher data do resumo" />
+                <input type="date" value={dataSelecionada || dataMaisRecente} max={dataMaisRecente || undefined} onChange={(event) => setDataSelecionada(event.target.value)} className="date-picker-premium min-w-0 bg-transparent text-xs font-semibold outline-none" aria-label="Escolher data do resumo" />
               </label>
             </div>
             {atualizadoEm && <p className="shrink-0 text-xs text-muted-foreground">Atualizado às {atualizadoEm}</p>}
