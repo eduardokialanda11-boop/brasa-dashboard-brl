@@ -204,7 +204,7 @@ function BrasaAoVivo() {
               </div>
               <div className="py-3">
                 <p className="text-2xl font-bold lg:text-3xl">{formatUSDC(totalUsdc)} <span className="text-sm font-medium text-muted-foreground lg:text-base">USDC</span></p>
-                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">recebidos on-chain nas carteiras dos gateways</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">recebidos on-chain via Transak + BRLA</p>
               </div>
               <div className="py-3 flex flex-wrap items-center justify-between gap-3">
                 <div>
@@ -229,7 +229,7 @@ function BrasaAoVivo() {
               </div>
             </div>
           )}
-          <footer className="mt-4 border-t border-border pt-3 text-[10px] leading-relaxed text-muted-foreground">Última sync: {syncDateTime} UTC-3 | Próxima: {nextSync} | Status: <span className="text-primary">● Coletando</span> | Carteiras: 12 monitoradas | Filtro: &gt;=5 USDC</footer>
+          <footer className="mt-4 border-t border-border pt-3 text-[10px] leading-relaxed text-muted-foreground">Fonte real: Transak Hot Wallet + BRLA via deBridge | Rede: Solana | Status: <span className="text-primary">Coletando</span></footer>
         </section>
 
         <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
@@ -277,7 +277,7 @@ function BrasaAoVivo() {
           <h2 className="text-lg font-bold lg:text-xl">Como funciona</h2>
           <div className="mt-4 grid gap-5 md:grid-cols-3 md:divide-x md:divide-border">
             <article className="md:pr-5">
-              <h3 className="font-semibold">👛 Carteiras monitoradas</h3>
+              <h3 className="font-semibold">👛 Duas fontes auditáveis</h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Monitoramos transferências de PIX que viraram USDC na rede Solana, 24h por dia. Cada transação é verificada on-chain no Solscan.</p>
             </article>
             <article className="md:px-5">
