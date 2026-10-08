@@ -103,8 +103,8 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
             <strong className="text-foreground">{safeTransactionCount.toLocaleString("pt-BR")} transações auditáveis</strong>
             {" | todos os eventos registrados"}
           </DialogDescription>
-          <p className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-left text-xs font-semibold text-primary">Dados on-chain, auditáveis em tempo real na Solana — verifique cada assinatura no Solscan.</p>
-          <p className="text-left text-xs text-muted-foreground">PIX → USDC resume os valores registrados; não é um memo decodificado. A origem informada não comprova, sozinha, o pagamento PIX nem a ausência de APIs privadas.</p>
+          <p className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-left text-xs font-semibold text-primary">Clique em qualquer transação e veja no Solscan quem assinou.</p>
+          <p className="text-left text-xs text-muted-foreground">A origem abaixo é a registrada na coleta. Esses campos não identificam o signatário como Transak nem comprovam o recebimento ou lastro em PIX. PIX → USDC é um resumo dos valores, não um memo decodificado.</p>
           <div className="flex flex-col gap-2 pt-2 sm:flex-row">
             <Button type="button" onClick={() => void downloadCsv()} disabled={exporting || rows.length === 0}>
               <Download aria-hidden="true" />
@@ -152,7 +152,11 @@ export function OnchainProofsDialog({ open, onOpenChange, rows = [], transaction
                       <td className="py-3 text-muted-foreground">{formatTime(time)}</td>
                        <td className="py-3 font-semibold">{formatBRL(numberFrom(row, ["amount_brl"]))}</td>
                       <td className="py-3 font-semibold">{formatUSDC(numberFrom(row, ["amount_usdc"]))} USDC</td>
-                      <td className="py-3 text-xs text-muted-foreground">{originLabel}</td>
+                      <td className="py-3 text-xs text-muted-foreground">
+                        <span className="inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">{origin === "debridge_brla" ? "Gateway: BRLA (Real Digital)" : origin === "gateway_direto" ? "Gateway direto — não identificado" : originLabel}</span>
+                        <p className="mt-1 text-xs text-muted-foreground">{originLabel}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">Prova: assinatura da transação no Solscan</p>
+                      </td>
                       <td className="py-3 text-right">
                         {signature ? (
                           <a className="inline-flex items-center gap-1 rounded-md bg-proof px-3 py-2 text-xs font-semibold text-proof-foreground transition-opacity hover:opacity-90" href={`https://solscan.io/tx/${signature}`} target="_blank" rel="noopener noreferrer" title={signature}>
