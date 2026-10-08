@@ -60,10 +60,7 @@ function BrasaAoVivo() {
     let active = true;
     async function fetchDashboard() {
       try {
-        const [countResult, transactionResult] = await Promise.all([
-          supabase.from("pix_onchain_events").select("signature", { count: "exact", head: true }),
-          supabase.from("pix_onchain_events").select("signature, amount_brl, block_time").order("block_time", { ascending: false }).limit(20),
-        ]);
+        const countResult = await supabase.from("pix_onchain_events").select("signature", { count: "exact", head: true });
         if (!active) return;
         if (countResult.error) throw countResult.error;
         const events: OnchainEvent[] = [];
@@ -78,7 +75,7 @@ function BrasaAoVivo() {
           events.push(...page);
           if (page.length < 1000) break;
         }
-        setProvasErro(Boolean(transactionResult.error));
+        setProvasErro(false);
         const currentDate = new Date().toISOString().slice(0, 10);
         const summary = summarizeEvents(events, currentDate);
         const allDays = summary.days;
@@ -108,7 +105,7 @@ function BrasaAoVivo() {
         );
         setHistorico(chronological.slice(-7));
         setAcumulado(summary.accumulated);
-        setTransactions((transactionResult.data ?? []) as TransactionRow[]);
+        setTransactions([...events].reverse());
         const now = new Date(); setAtualizadoEm(now.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit", second: "2-digit", timeZone: "America/Sao_Paulo" })); setAtualizadoEmCompleto(now);
       } catch (err) { console.error(err); setProvasErro(true); } finally { if (active) { setCarregando(false); setProvasCarregando(false); } }
     }
@@ -294,7 +291,7 @@ function BrasaAoVivo() {
           </div>
         </section>
       </div>
-      <OnchainProofsDialog open={provasAbertas} onOpenChange={setProvasAbertas} rows={transactions} transactionCount={transacoes} loading={provasCarregando} error={provasErro} />
+      <OnchainProofsDialog open={provasAbertas} onOpenChange={setProvasAbertas} rows={transactions} transactionCount={acumulado.txCount} loading={provasCarregando} error={provasErro} />
     </main>
   );
 }
