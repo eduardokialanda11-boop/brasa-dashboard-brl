@@ -1,6 +1,7 @@
 # Roadmap
+- [x] Textos alinhados ao objetivo PIX → USDC, mantendo visual, CSS e valores reais
 - [x] Fonte trocada por eventos reais sem filtros, CSS preservado e cálculos testados
-- [ ] Confirmar 49 eventos públicos — bloqueado: acesso anon retorna 0 sem erro
+- [x] Validar leitura pública — consulta anterior confirmou 51 eventos reais (40 gateway_direto + 11 debridge_brla), em vez dos 49 esperados
 - [x] Dashboard consolidado em `daily_summary_brt`, preservando o último dia on-chain disponível
 - [x] Provas limitadas às 20 transações reais mais recentes com link Solscan
 - [x] Resumo alimentado pelo registro mais recente de `historico_ponto`

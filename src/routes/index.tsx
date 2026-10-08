@@ -169,7 +169,7 @@ function BrasaAoVivo() {
             <div className="flex items-center gap-2"><img src={brasaIcon.url} alt="" className="size-8 shrink-0 rounded-full object-cover" /><span className="font-bold">BRASA</span></div>
             <div className="flex shrink-0 items-center justify-end gap-2 text-[11px] font-bold text-primary md:text-xs"><span className="relative flex size-2.5"><span className="absolute inline-flex size-full animate-ping rounded-full bg-primary opacity-70" /><span className="relative inline-flex size-2.5 rounded-full bg-primary" /></span>REAL-ON-CHAIN</div>
           </div>
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">O BRASA monitora em tempo real quanto de Real (PIX) virou USDC nas 12 maiores rampas BR na Solana - dados 100% on-chain auditáveis</p>
+          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">BRASA monitora em tempo real quanto de Real (PIX) está virando dólar digital (USDC) na rede Solana - dados 100% on-chain auditáveis</p>
           <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <p>{resumo?.date ? `Referência: ${formatDate(resumo.date)}${resumo.date < brazilDate() ? " (dado on-chain)" : ""}` : "Aguardando primeiro dado on-chain"}</p>
@@ -220,11 +220,11 @@ function BrasaAoVivo() {
                 <p className="text-[11px] font-bold uppercase text-muted-foreground">Economia Gerada</p>
                 <p className="mt-1.5 text-2xl font-bold lg:text-3xl">{formatBRLWhole(economiaDiaria)}</p>
                 <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">+3,7% vs bancos tradicionais</span>
-                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground lg:text-xs">Cálculo: {formatBRL(economiaTotalHistorica)} economizados (Spread bancário 5,19 vs PTAX {dolar?.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) ?? "-"} on-chain)</p>
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground lg:text-xs">+3,7% vs bancos tradicionais (Spread + IOF) - quanto brasileiros economizaram usando Solana em vez de banco</p>
               </div>
               <div className="py-3">
                 <p className="text-2xl font-bold text-highlight lg:text-3xl">{(pontos/1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil pontos</p>
-                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Pontos Brasa</p>
+                <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">Volume convertido em pontos</p>
               </div>
               <div className="py-3">
                 <p className="text-2xl font-bold lg:text-3xl">{dolar? `R$ ${dolar.toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}` : "-"}</p>
@@ -240,7 +240,7 @@ function BrasaAoVivo() {
           <h2 className="mt-1 text-lg font-bold lg:text-xl">Acumulado Total Real</h2>
           {carregando? (<p className="py-16 text-center text-sm text-muted-foreground">Calculando o histórico real...</p>) : (
             <div className="mt-5 divide-y divide-border">
-              <div className="pb-4"><p className="text-2xl font-bold text-primary lg:text-3xl">{formatBRLWhole(acumulado.totalBRL)}</p><p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">no total desde o início - R$ 128M auditáveis</p></div>
+              <div className="pb-4"><p className="text-2xl font-bold text-primary lg:text-3xl">{formatBRLWhole(acumulado.totalBRL)}</p><p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">em PIX convertido para USDC na Solana desde o início</p></div>
               <div className="py-4"><p className="text-2xl font-bold lg:text-3xl">{acumulado.txCount.toLocaleString("pt-BR")} <span className="text-sm font-medium text-muted-foreground lg:text-base">txs</span></p><p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">{formatBRL(acumulado.totalBRL)} no total | {acumulado.txCount.toLocaleString("pt-BR")} txs desde o início</p></div>
             </div>
           )}
@@ -281,7 +281,7 @@ function BrasaAoVivo() {
           <div className="mt-4 grid gap-5 md:grid-cols-3 md:divide-x md:divide-border">
             <article className="md:pr-5">
               <h3 className="font-semibold">👛 Carteiras monitoradas</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">12 gateways PIX – USDC monitorados continuamente, 24 horas por dia. Cada carteira é verificada no Solscan.</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Monitoramos transferências de PIX que viraram USDC na rede Solana, 24h por dia. Cada transação é verificada on-chain no Solscan.</p>
             </article>
             <article className="md:px-5">
               <h3 className="font-semibold">🔍 Detecção</h3>
