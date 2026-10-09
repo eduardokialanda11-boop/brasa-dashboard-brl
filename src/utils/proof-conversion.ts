@@ -12,12 +12,12 @@ const utcDay = (value: unknown) => {
 };
 
 export function proofConversion(row: ProofRow, rows: ProofRow[]) {
-  const day = utcDay(row.block_time);
-  const totals = rows.reduce((sum, event) => {
-    if (!day || utcDay(event.block_time) !== day) return sum;
-    return { brl: sum.brl + finiteNumber(event.amount_brl), usdc: sum.usdc + finiteNumber(event.amount_usdc) };
+  const day = utcDay(row['block_time']);
+  const totals = rows.reduce<{ brl: number; usdc: number }>((sum, event) => {
+    if (!day || utcDay(event['block_time']) !== day) return sum;
+    return { brl: sum.brl + finiteNumber(event['amount_brl']), usdc: sum.usdc + finiteNumber(event['amount_usdc']) };
   }, { brl: 0, usdc: 0 });
   const rate = totals.brl > 0 && totals.usdc > 0 ? totals.brl / totals.usdc : null;
-  const usdc = finiteNumber(row.amount_usdc);
+  const usdc = finiteNumber(row['amount_usdc']);
   return { day, rate, usdc, calculatedBRL: rate === null ? null : usdc * rate };
 }
