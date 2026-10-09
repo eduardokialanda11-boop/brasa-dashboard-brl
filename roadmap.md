@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Economia diária pelo volume selecionado × 5,7%, total acumulado pela mesma taxa, duas casas decimais e validação da troca de dia
 - [x] Removida a contagem de carteiras; textos identificam Transak e BRLA via deBridge como duas fontes auditáveis, sem alterar visual ou valores
 - [x] Modal com todos os eventos reais, BRL/USDC, origem, links Solscan e resumo sem inventar memo
 - [x] Textos alinhados ao objetivo PIX → USDC, mantendo visual, CSS e valores reais
