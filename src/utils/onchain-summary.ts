@@ -40,5 +40,5 @@ export function summarizeEvents(events: OnchainEvent[], currentDate: string) {
   return { accumulated, today, days: [...days.values()].sort((a, b) => a.date.localeCompare(b.date)), origins };
 }
 export function eventRewards(totalBRL: number) {
-  return { economy: totalBRL * 0.037, points: totalBRL * 100 };
+  return { economy: totalBRL * 0.057, points: totalBRL * 100 };
 }

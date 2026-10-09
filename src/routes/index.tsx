@@ -117,7 +117,7 @@ function BrasaAoVivo() {
   const totalBrl = asNumber(resumo?.total_brl); const totalUsdc = asNumber(resumo?.total_usdc); const transacoes = asNumber(resumo?.tx_count);
   const dolarInformado = asNumber(resumo?.usd_brl_rate); const dolar = dolarInformado > 0? dolarInformado : totalUsdc > 0? totalBrl / totalUsdc : null;
   const rewards = eventRewards(acumulado.totalBRL);
-  const economiaDiaria = rewards.economy; const economiaTotalHistorica = rewards.economy; const pontos = rewards.points;
+  const economiaDiaria = eventRewards(totalBrl).economy; const economiaTotalHistorica = rewards.economy; const pontos = rewards.points;
   const syncDateTime = atualizadoEmCompleto? new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" }).format(atualizadoEmCompleto) : "-";
   const nextSync = atualizadoEmCompleto? new Intl.DateTimeFormat("pt-BR", { hour: "2-digit", minute: "2-digit", hour12: false, timeZone: "America/Sao_Paulo" }).format(new Date(atualizadoEmCompleto.getTime() + 60_000)) : "-";
   const variacao = useMemo(() => { if (historico.length < 2) return null; const prev = asNumber(historico[historico.length - 2]?.total_brl); const curr = asNumber(historico[historico.length - 1]?.total_brl); return prev > 0? ((curr - prev) / prev) * 100 : null; }, [historico]);
@@ -215,9 +215,9 @@ function BrasaAoVivo() {
               </div>
               <div className="py-3">
                 <p className="text-[11px] font-bold uppercase text-muted-foreground">Economia Gerada</p>
-                <p className="mt-1.5 text-2xl font-bold lg:text-3xl">{formatBRLWhole(economiaDiaria)}</p>
-                <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">+3,7% vs bancos tradicionais</span>
-                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground lg:text-xs">+3,7% vs bancos tradicionais (Spread + IOF) - quanto brasileiros economizaram usando Solana em vez de banco</p>
+                <p className="mt-1.5 text-2xl font-bold lg:text-3xl">{formatBRL(economiaDiaria)}</p>
+                <span className="mt-2 inline-flex rounded-full bg-primary/10 px-2.5 py-1 text-[11px] font-bold text-primary">+5,7% vs bancos tradicionais</span>
+                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground lg:text-xs">+5,7% vs bancos tradicionais (Spread + IOF) - quanto brasileiros economizaram usando Solana em vez de banco</p>
               </div>
               <div className="py-3">
                 <p className="text-2xl font-bold text-highlight lg:text-3xl">{(pontos/1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 })} mil pontos</p>
@@ -286,7 +286,7 @@ function BrasaAoVivo() {
             </article>
             <article className="md:pl-5">
               <h3 className="font-semibold">💰 Economia estimada</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Spread médio bancário de 3,7% + IOF vs taxa Solana de R$0,01. Cálculo: {formatBRL(economiaTotalHistorica)} economizados no total. Valor auditável e conservador.</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Economia estimada: volume real acumulado × 5,7% (Spread + IOF). Cálculo: {formatBRL(economiaTotalHistorica)} economizados no total.</p>
             </article>
           </div>
         </section>
