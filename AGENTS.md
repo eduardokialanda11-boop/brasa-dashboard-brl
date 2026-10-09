@@ -16,3 +16,4 @@
 - Reuse every paginated `pix_onchain_events` row for proofs, newest first, using only signature, amount_brl, amount_usdc, origem and block_time; sharing the source prevents truncated or divergent audit totals.
 - Calculate dashboard growth from chronological event aggregates; never append missing or future dates to the chart.
 - Derive daily savings from the selected-day volume and historical savings from accumulated volume through the shared rewards helper; separate bases prevent date-independent daily figures.
+- Keep transaction conversion math in a browser-safe helper and layer details in a nested dialog; the daily event ratio is a derived reference, not official PTAX, and returning must preserve the proof list.
