@@ -278,7 +278,7 @@ function BrasaAoVivo() {
           <div className="mt-4 grid gap-5 md:grid-cols-3 md:divide-x md:divide-border">
             <article className="md:pr-5">
               <h3 className="font-semibold">👛 Duas fontes auditáveis</h3>
-              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Monitoramos transferências de PIX que viraram USDC na rede Solana, 24h por dia. Cada transação é verificada on-chain no Solscan.</p>
+              <p className="mt-2 text-sm leading-relaxed text-muted-foreground">Monitorando gateways PIX -&gt; USDC ativos na rede Solana em tempo real via Helius RPC</p>
             </article>
             <article className="md:px-5">
               <h3 className="font-semibold">🔍 Detecção</h3>
