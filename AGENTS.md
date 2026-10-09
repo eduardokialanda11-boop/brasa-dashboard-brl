@@ -15,3 +15,4 @@
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
 - Reuse every paginated `pix_onchain_events` row for proofs, newest first, using only signature, amount_brl, amount_usdc, origem and block_time; sharing the source prevents truncated or divergent audit totals.
 - Calculate dashboard growth from chronological event aggregates; never append missing or future dates to the chart.
+- Derive daily savings from the selected-day volume and historical savings from accumulated volume through the shared rewards helper; separate bases prevent date-independent daily figures.
