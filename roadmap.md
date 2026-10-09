@@ -1,4 +1,5 @@
 # Roadmap
+- [x] Conferir toque e clique em R$ 21,38 / 4,12 USDC, camada acima da lista e fechamento por X, fora e botão
 - [x] Segunda janela por transação com conversão calculada, assinatura completa, Solscan e retorno à lista preservada
 - [x] Economia diária pelo volume selecionado × 5,7%, total acumulado pela mesma taxa, duas casas decimais e validação da troca de dia
 - [x] Removida a contagem de carteiras; textos identificam Transak e BRLA via deBridge como duas fontes auditáveis, sem alterar visual ou valores
