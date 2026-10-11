@@ -1,5 +1,5 @@
 import { expect, test } from "bun:test";
-import { proofsForDate } from "./proof-date";
+import { proofsForDate, startOfDayInSP, endOfDayInSP } from "./proof-date";
 import { summarizeEvents } from "./onchain-summary";
 
 const row = (signature, block_time) => ({ signature, block_time, amount_brl: 5.19, amount_usdc: 1, origem: "gateway_direto", token_symbol: "USDC", token_mint: "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v" });
@@ -18,4 +18,17 @@ test("proofs use the same Sao Paulo midnight boundaries as cards", () => {
 test("missing dates never fall back to all historical proofs", () => {
   expect(proofsForDate([row("other", "2026-10-08T12:00:00Z")], "2026-10-09")).toEqual([]);
   expect(proofsForDate([row("other", "2026-10-08T12:00:00Z")], "")).toEqual([]);
+});
+test("Sao Paulo October 7 starts at 03:00 UTC and ends at next-day 02:59:59.999 UTC", () => {
+  const date = new Date("2026-10-07T15:00:00Z");
+  expect(startOfDayInSP(date)).toBe("2026-10-07T03:00:00.000Z");
+  expect(endOfDayInSP(date)).toBe("2026-10-08T02:59:59.999Z");
+});
+test("daily 70 and 57 counts stay separate from accumulated 365", () => {
+  const rows = [...Array.from({length:70},(_,i)=>row(`a${i}`,"2026-10-07T12:00:00Z")), ...Array.from({length:57},(_,i)=>row(`b${i}`,"2026-10-08T12:00:00Z")), ...Array.from({length:238},(_,i)=>row(`c${i}`,"2026-10-09T12:00:00Z"))];
+  for (const [day,count] of [["2026-10-07",70],["2026-10-08",57],["2026-10-09",238]]) {
+    expect(summarizeEvents(rows,day).today.tx_count).toBe(count);
+    expect(proofsForDate(rows,day)).toHaveLength(count);
+    expect(summarizeEvents(rows,day).accumulated.txCount).toBe(365);
+  }
 });

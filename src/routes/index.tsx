@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import {
   eventRewards,
+  onchainEventDate,
   summarizeEvents,
   type DailyVolume,
   type OnchainEvent,
@@ -106,7 +107,7 @@ export const Route = createFileRoute("/")({
 });
 
 function BrasaAoVivo() {
-  const [resumo, setResumo] = useState<DailyVolume | null>(null);
+  const [availableDays, setAvailableDays] = useState<DailyVolume[]>([]);
 
   const [acumulado, setAcumulado] = useState<AccumulatedVolume>({
     totalBRL: 0,
@@ -115,12 +116,21 @@ function BrasaAoVivo() {
   });
 
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
-  const [dataSelecionada, setDataSelecionada] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [dataMaisRecente, setDataMaisRecente] = useState("");
-  const [avisoData, setAvisoData] = useState<string | null>(null);
+  const dataSelecionada = selectedDate ? onchainEventDate(selectedDate) ?? "" : "";
+  const referenceDate = dataSelecionada || dataMaisRecente;
+  const resumo = useMemo<DailyVolume | null>(() => {
+    if (!referenceDate) return null;
+    return availableDays.find(day => day.date === referenceDate) ?? {
+      date: referenceDate, total_brl: 0, total_usdc: 0, tx_count: 0, usd_brl_rate: null,
+    };
+  }, [availableDays, referenceDate]);
   const [crescimentoSeteDias, setCrescimentoSeteDias] =
     useState<number | null>(null);
   const [carregando, setCarregando] = useState(true);
+  const avisoData = !carregando && referenceDate && !availableDays.some(day => day.date === referenceDate)
+    ? `Sem registros on-chain em ${formatDate(referenceDate)}.` : null;
   const [atualizadoEm, setAtualizadoEm] = useState<string | null>(null);
   const [atualizadoEmCompleto, setAtualizadoEmCompleto] =
     useState<Date | null>(null);
@@ -178,51 +188,9 @@ function BrasaAoVivo() {
         setProvasErro(false);
 
         const latest = allDays.at(-1);
-        const requestedDate = dataSelecionada || currentDate;
-
-        const exactDay = allDays.find(
-          (row) => row.date === requestedDate,
-        );
-
-        const closestDay =
-          exactDay ??
-          (requestedDate
-            ? allDays.reduce<DailyVolume | null>((closest, row) => {
-                if (
-                  !closest ||
-                  Math.abs(
-                    new Date(`${row.date}T12:00:00Z`).getTime() -
-                      new Date(`${requestedDate}T12:00:00Z`).getTime(),
-                  ) <
-                    Math.abs(
-                      new Date(`${closest.date}T12:00:00Z`).getTime() -
-                        new Date(`${requestedDate}T12:00:00Z`).getTime(),
-                    )
-                ) {
-                  return row;
-                }
-
-                return closest;
-              }, null)
-            : latest ?? null);
-
-        setResumo(
-          requestedDate === currentDate
-            ? summary.today
-            : closestDay,
-        );
-
+        setAvailableDays(allDays);
+        setSelectedDate(previous => previous ?? new Date(`${latest?.date ?? currentDate}T15:00:00Z`));
         setDataMaisRecente(currentDate);
-
-        setAvisoData(
-          requestedDate !== currentDate && !exactDay && closestDay
-            ? `Sem coleta nesse dia - coleta iniciou em ${formatDate(
-                allDays[0]?.date ?? closestDay.date,
-              )}. Exibindo o dia mais próximo: ${formatDate(
-                closestDay.date,
-              )}.`
-            : null,
-        );
 
         const chronological = allDays.slice(-8);
 
@@ -309,7 +277,7 @@ function BrasaAoVivo() {
       window.clearInterval(refreshInterval);
       supabase.removeChannel(realtimeChannel);
     };
-  }, [dataSelecionada]);
+  }, []);
 
   const totalBrl = asNumber(resumo?.total_brl);
   const totalUsdc = asNumber(resumo?.total_usdc);
@@ -637,7 +605,7 @@ function BrasaAoVivo() {
                   value={dataSelecionada || dataMaisRecente}
                   max={dataMaisRecente || undefined}
                   onChange={(event) =>
-                    setDataSelecionada(event.target.value)
+                    setSelectedDate(event.target.value ? new Date(`${event.target.value}T15:00:00Z`) : null)
                   }
                   className="date-picker-premium min-w-0 bg-transparent text-xs font-semibold outline-none"
                   aria-label="Escolher data do resumo"
@@ -660,7 +628,7 @@ function BrasaAoVivo() {
         </header>
 
         <div className="grid gap-4 md:grid-cols-2">
-          <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+          <section key={selectedDate?.toISOString()} className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold lg:text-xl">
                 Dia
@@ -1032,8 +1000,8 @@ function BrasaAoVivo() {
         open={provasAbertas}
         onOpenChange={setProvasAbertas}
         rows={transactions}
-        referenceDate={resumo?.date ?? dataSelecionada ?? dataMaisRecente}
-        key={resumo?.date ?? dataSelecionada}
+        selectedDate={selectedDate}
+        key={selectedDate?.toISOString()}
         loading={provasCarregando}
         error={provasErro}
       />
