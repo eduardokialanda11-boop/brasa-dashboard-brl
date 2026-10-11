@@ -17,6 +17,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { formatBRL, formatUSDC } from "@/utils/format";
 import { proofConversion } from "@/utils/proof-conversion";
+import { proofsForDate } from "@/utils/proof-date";
 
 export type TransactionRow = Record<string, unknown>;
 
@@ -24,7 +25,7 @@ type OnchainProofsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   rows?: TransactionRow[];
-  transactionCount?: number;
+  referenceDate: string;
   loading: boolean;
   error: boolean;
 };
@@ -50,7 +51,7 @@ const textFrom = (row: TransactionRow, keys: string[]) => {
 };
 
 const isVerifiedUSDC = (row: TransactionRow) =>
-  row.token_symbol === "USDC" && row.token_mint === USDC_MINT;
+  row["token_symbol"] === "USDC" && row["token_mint"] === USDC_MINT && numberFrom(row, ["amount_usdc"]) > 0;
 
 const shorten = (value: string) =>
   value.length > 12
@@ -79,7 +80,7 @@ export function OnchainProofsDialog({
   open,
   onOpenChange,
   rows = [],
-  transactionCount = 0,
+  referenceDate,
   loading,
   error,
 }: OnchainProofsDialogProps) {
@@ -88,7 +89,7 @@ export function OnchainProofsDialog({
   const [selectedTx, setSelectedTx] = useState<TransactionRow | null>(null);
 
   // A janela de provas utiliza o mesmo filtro de USDC oficial do resumo.
-  const verifiedRows = rows.filter(isVerifiedUSDC);
+  const verifiedRows = proofsForDate(rows.filter(isVerifiedUSDC), referenceDate);
 
   const conversion = selectedTx
     ? proofConversion(selectedTx, verifiedRows)
@@ -222,7 +223,7 @@ export function OnchainProofsDialog({
               {safeTransactionCount.toLocaleString("pt-BR")} transferências
               USDC verificadas pelo mint
             </strong>
-            {" | registros encontrados na base do Brasa"}
+            {" | "}{referenceDate ? referenceDate.split("-").reverse().join("/") : "Data indisponível"}
           </DialogDescription>
 
           <p className="rounded-lg border border-primary/30 bg-primary/10 p-3 text-left text-xs font-semibold text-primary">

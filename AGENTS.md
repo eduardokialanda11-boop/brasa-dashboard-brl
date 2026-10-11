@@ -13,7 +13,7 @@
 - Aggregate dashboard totals and chronological real chart days from paginated, unfiltered `pix_onchain_events` reads in `src/utils/onchain-summary.ts`; one shared aggregator prevents divergent totals. Default daily reads use UTC midnight to match the requested CURRENT_DATE condition; historical date selection retains nearest-real-day fallback.
 - Refresh by rereading `pix_onchain_events` every 60 seconds and after its realtime changes; never increment source values in browser state.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
-- Reuse every paginated `pix_onchain_events` row for proofs, newest first, using only signature, amount_brl, amount_usdc, origem and block_time; sharing the source prevents truncated or divergent audit totals.
+- Reuse paginated dashboard events for proofs, newest first, filtering by the resolved card date with the shared Sao Paulo event-day helper and identical token eligibility; sharing the source and calendar boundary prevents divergent daily counts and keeps exports scoped to the displayed day.
 - Calculate dashboard growth from chronological event aggregates; never append missing or future dates to the chart.
 - Derive daily savings from the selected-day volume and historical savings from accumulated volume through the shared rewards helper; separate bases prevent date-independent daily figures.
 - Keep transaction conversion math in a browser-safe helper and layer details in a nested dialog; the daily event ratio is a derived reference, not official PTAX, and returning must preserve the proof list.

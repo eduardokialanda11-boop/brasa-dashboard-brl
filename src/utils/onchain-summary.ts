@@ -28,7 +28,7 @@ const numberFrom = (value: number | string | null | undefined) => {
   return Number.isFinite(number) && number > 0 ? number : 0;
 };
 
-function brazilDate(value: string | Date): string | null {
+export function onchainEventDate(value: string | Date): string | null {
   const date = new Date(value);
 
   if (Number.isNaN(date.getTime())) {
@@ -95,7 +95,7 @@ export function summarizeEvents(
 
     const brl = numberFrom(event.amount_brl);
     const date = event.block_time
-      ? brazilDate(event.block_time)
+      ? onchainEventDate(event.block_time)
       : null;
 
     accumulated.totalBRL += brl;
