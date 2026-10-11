@@ -2,7 +2,24 @@
 
 Crie um dashboard Brasa Points - tema dark premium, com verde #22c55e.
 
+Brasa is the first REAL-ON-CHAIN index that estimates how much Brazilian PIX is turning into USDC on Solana.
 
+The Problem: 140M Brazilians use PIX daily, but no one knows how much is leaving Brazil to become digital dollars on Solana. Banks charge 4-7% and hide the data.
+
+What Brasa does:
+1. TODAY's volume: How much PIX became USDC today? (Today: R$ 91,271 / 60 txs - 11/10/2026)
+2. Savings: How much users saved vs banks? (Today: R$ 2,099.24)
+3. Growth: Is Solana adoption growing or falling in Brazil? (Last 7 days: +71%, 71% collection rate)
+
+How it works (Methodology - ESTIMATE, not official BCB data):
+We track public hot wallets known as Brazilian BRL on-ramps (Transak Hot Wallet, BRLA via deBridge) and classify their outgoing USDC transfers on Solana as "PIX-intent" flow. BRL value = USDC * reference rate (R$ 5.19 avg).
+On-chain proof: Mint address verifies official USDC token, signature proves transaction exists on Solana and is auditable on Solscan. The label "PIX origin" is a heuristic classification by our collector, not a bank proof. PIX itself is off-chain (BCB).
+
+All 368 txs are 100% auditable: signature + Solscan link + BRL calculation (R$ 91,91 / 5,19 = 17,71 USDC).
+
+Built on: Helius RPC (ingestion), Supabase (daily_volumes, real-time API), Lovable + React + TypeScript (dashboard).
+
+This is an index/proxy, like inflation index - not official Central Bank data.
 
 CONEXÃO SUPABASE:
 
