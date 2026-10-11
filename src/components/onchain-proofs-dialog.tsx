@@ -18,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { formatBRL, formatUSDC } from "@/utils/format";
 import { proofConversion } from "@/utils/proof-conversion";
 import { proofsForDate } from "@/utils/proof-date";
+import { onchainEventDate } from "@/utils/onchain-summary";
 
 export type TransactionRow = Record<string, unknown>;
 
@@ -25,7 +26,7 @@ type OnchainProofsDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   rows?: TransactionRow[];
-  referenceDate: string;
+  selectedDate: Date | null;
   loading: boolean;
   error: boolean;
 };
@@ -80,13 +81,14 @@ export function OnchainProofsDialog({
   open,
   onOpenChange,
   rows = [],
-  referenceDate,
+  selectedDate,
   loading,
   error,
 }: OnchainProofsDialogProps) {
   const [exporting, setExporting] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [selectedTx, setSelectedTx] = useState<TransactionRow | null>(null);
+  const referenceDate = selectedDate ? onchainEventDate(selectedDate) ?? "" : "";
 
   // A janela de provas utiliza o mesmo filtro de USDC oficial do resumo.
   const verifiedRows = proofsForDate(rows.filter(isVerifiedUSDC), referenceDate);
@@ -220,8 +222,7 @@ export function OnchainProofsDialog({
 
           <DialogDescription className="text-left leading-relaxed">
             <strong className="text-foreground">
-              {safeTransactionCount.toLocaleString("pt-BR")} transferências
-              USDC verificadas pelo mint
+              {safeTransactionCount.toLocaleString("pt-BR")} transações auditáveis
             </strong>
             {" | "}{referenceDate ? referenceDate.split("-").reverse().join("/") : "Data indisponível"}
           </DialogDescription>

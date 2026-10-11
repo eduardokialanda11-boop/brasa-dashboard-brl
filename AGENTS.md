@@ -10,7 +10,7 @@
 <!-- LOVABLE:END -->
 
 - Keep all dashboard currency presentation in `src/utils/format.ts` so cards and charts use identical locale-safe formatting.
-- Aggregate dashboard totals and chronological real chart days from paginated, unfiltered `pix_onchain_events` reads in `src/utils/onchain-summary.ts`; one shared aggregator prevents divergent totals. Default daily reads use UTC midnight to match the requested CURRENT_DATE condition; historical date selection retains nearest-real-day fallback.
+- Aggregate dashboard totals and real chart days from paginated `pix_onchain_events` reads in `src/utils/onchain-summary.ts`; derive daily cards immediately from the shared calendar Date and cached real days, using America/Sao_Paulo boundaries. Explicit empty dates show no records, not another day's rows; default selection starts on the latest real day.
 - Refresh by rereading `pix_onchain_events` every 60 seconds and after its realtime changes; never increment source values in browser state.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
 - Reuse paginated dashboard events for proofs, newest first, filtering by the resolved card date with the shared Sao Paulo event-day helper and identical token eligibility; sharing the source and calendar boundary prevents divergent daily counts and keeps exports scoped to the displayed day.
