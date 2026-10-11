@@ -23,6 +23,7 @@ import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import {
   eventRewards,
+  onchainEventDate,
   summarizeEvents,
   type DailyVolume,
   type OnchainEvent,
@@ -106,7 +107,7 @@ export const Route = createFileRoute("/")({
 });
 
 function BrasaAoVivo() {
-  const [resumo, setResumo] = useState<DailyVolume | null>(null);
+  const [availableDays, setAvailableDays] = useState<DailyVolume[]>([]);
 
   const [acumulado, setAcumulado] = useState<AccumulatedVolume>({
     totalBRL: 0,
@@ -115,9 +116,18 @@ function BrasaAoVivo() {
   });
 
   const [historico, setHistorico] = useState<DailyVolume[]>([]);
-  const [dataSelecionada, setDataSelecionada] = useState("");
+  const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const dataSelecionada = selectedDate ? onchainEventDate(selectedDate) ?? "" : "";
+  const referenceDate = dataSelecionada || dataMaisRecente;
+  const resumo = useMemo<DailyVolume | null>(() => {
+    if (!referenceDate) return null;
+    return availableDays.find(day => day.date === referenceDate) ?? {
+      date: referenceDate, total_brl: 0, total_usdc: 0, tx_count: 0, usd_brl_rate: null,
+    };
+  }, [availableDays, referenceDate]);
   const [dataMaisRecente, setDataMaisRecente] = useState("");
-  const [avisoData, setAvisoData] = useState<string | null>(null);
+  const avisoData = !carregando && referenceDate && !availableDays.some(day => day.date === referenceDate)
+    ? `Sem registros on-chain em ${formatDate(referenceDate)}.` : null;
   const [crescimentoSeteDias, setCrescimentoSeteDias] =
     useState<number | null>(null);
   const [carregando, setCarregando] = useState(true);
