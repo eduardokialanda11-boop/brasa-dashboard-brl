@@ -1,5 +1,5 @@
 # Roadmap
-- [ ] Unificar seleção de data e métricas imediatas no fuso São Paulo; verificar 07/10, 08/10, 09/10, CSV e acumulado
+- [x] Seleção de data imediata no fuso São Paulo; navegador confirmou cards/lista/CSV com 20, 93 e 101 eventos em 07/10, 08/10 e 09/10, cópia correta e acumulado independente; pix_usdc_conversions indisponível nesta conexão, mantida fonte real existente
 - [x] Filtrar provas, contagem e CSV pelo dia efetivamente exibido nos cards; testes e navegador confirmaram 20 provas em 07/10 e 93 em 08/10, iguais às contagens atuais dos cards
 - [x] Conferir toque e clique em R$ 21,38 / 4,12 USDC, camada acima da lista e fechamento por X, fora e botão
 - [x] Segunda janela por transação com conversão calculada, assinatura completa, Solscan e retorno à lista preservada
