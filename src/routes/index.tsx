@@ -1032,7 +1032,8 @@ function BrasaAoVivo() {
         open={provasAbertas}
         onOpenChange={setProvasAbertas}
         rows={transactions}
-        transactionCount={acumulado.txCount}
+        referenceDate={resumo?.date ?? dataSelecionada ?? dataMaisRecente}
+        key={resumo?.date ?? dataSelecionada}
         loading={provasCarregando}
         error={provasErro}
       />
