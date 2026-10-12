@@ -64,7 +64,7 @@ Live Product
 
 Access the Brasa dashboard:
 
-https://points-pulse-dash.lovable.app/
+https://https://brasa-dashboard-brl.lovable.app/
 
 Project Status
 
