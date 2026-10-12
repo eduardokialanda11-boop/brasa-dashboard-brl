@@ -1,72 +1,79 @@
-# Brasa Points Dashboard
+Brasa — Solana Analytics for Brazil's Digital Dollar Economy
 
-Crie um dashboard Brasa Points - tema dark premium, com verde #22c55e.
+Brasa is an on-chain analytics dashboard that estimates potential PIX-related flows into USDC on Solana.
 
-Brasa is the first REAL-ON-CHAIN index that estimates how much Brazilian PIX is turning into USDC on Solana.
+The project aims to make digital dollar activity connected to Brazil more observable through transaction analysis, historical indicators, and verifiable blockchain records.
 
-The Problem: 140M Brazilians use PIX daily, but no one knows how much is leaving Brazil to become digital dollars on Solana. Banks charge 4-7% and hide the data.
+«Important: Brasa provides estimates, not official PIX statistics. Public blockchain data can verify transactions on Solana, but cannot independently prove that funds originated from PIX.»
 
-What Brasa does:
-1. TODAY's volume: How much PIX became USDC today? (Today: R$ 91,271 / 60 txs - 11/10/2026)
-2. Savings: How much users saved vs banks? (Today: R$ 2,099.24)
-3. Growth: Is Solana adoption growing or falling in Brazil? (Last 7 days: +71%, 71% collection rate)
+The Problem
 
-How it works (Methodology - ESTIMATE, not official BCB data):
-We track public hot wallets known as Brazilian BRL on-ramps (Transak Hot Wallet, BRLA via deBridge) and classify their outgoing USDC transfers on Solana as "PIX-intent" flow. BRL value = USDC * reference rate (R$ 5.19 avg).
-On-chain proof: Mint address verifies official USDC token, signature proves transaction exists on Solana and is auditable on Solscan. The label "PIX origin" is a heuristic classification by our collector, not a bank proof. PIX itself is off-chain (BCB).
+Brazil's PIX payment system is widely used, while stablecoins such as USDC provide access to digital dollars through blockchain networks.
 
-All 368 txs are 100% auditable: signature + Solscan link + BRL calculation (R$ 91,91 / 5,19 = 17,71 USDC).
+However, publicly available on-chain data alone cannot reliably identify which stablecoin transfers originated from PIX. This makes it difficult to measure the relationship between Brazilian payment activity and the digital dollar economy.
 
-Built on: Helius RPC (ingestion), Supabase (daily_volumes, real-time API), Lovable + React + TypeScript (dashboard).
+Brasa explores how public blockchain data can help make this activity more transparent.
 
-This is an index/proxy, like inflation index - not official Central Bank data.
+What Brasa Does
 
-CONEXÃO SUPABASE:
+- Daily activity: Estimates the BRL value associated with monitored USDC transfers.
+- Historical trends: Tracks activity over time to help identify potential changes in transaction volume.
+- Transaction evidence: Provides access to recorded transaction signatures and blockchain explorer links where available.
+- Estimated cost comparisons: Aims to compare potential transaction costs with traditional alternatives, subject to a clearly defined methodology and reliable fee data.
 
-- URL: https://npxytlxjnoqpyoukpppi.supabase.co
+How It Works
 
-- Tabela: historico_ponto
+Brasa collects publicly available Solana blockchain data and analyzes USDC transfers associated with selected on-ramp wallets.
 
-- Colunas: pontos (int), posicao (int), criado_em (timestamp)
+The processing workflow is:
 
+1. Data collection: Helius provides access to Solana blockchain data.
+2. Wallet monitoring: The collector monitors selected wallets associated with on-ramp activity.
+3. Transaction analysis: Eligible outgoing USDC transfers are recorded and analyzed according to the project's classification rules.
+4. Data storage and processing: Supabase stores transaction data and supports the dashboard's data access and updates.
+5. Visualization: The dashboard presents activity indicators and historical trends.
 
+Methodology and Limitations
 
-FUNCIONALIDADES:
+Brasa classifies selected transfers as potentially PIX-related based on monitored wallets and transaction patterns.
 
-1. Conecte usando @supabase/supabase-js e busque todos os dados ordenados por criado_em ASC
+This classification is a heuristic, not proof of payment origin. A transfer from a monitored wallet does not establish that the underlying funds came from PIX.
 
-2. Card grande no topo: "9.2M PONTOS" com último valor da tabela / 1M
+The BRL equivalent is calculated using a reference USD/BRL exchange rate:
 
-3. Abaixo: "Posição #12" com valor da coluna posicao
+Estimated BRL value = USDC amount × reference USD/BRL rate
 
-4. Gráfico de linha com Chart.js: eixo X = horário, eixo Y = pontos em milhões, linha verde neon, área preenchida, curva suave, subindo de 1.2M até 9.2M
+This is an approximate conversion. The reference rate may differ from the rate applied to an individual transaction.
 
-5. Deixe 2 inputs no rodapé para URL e ANON KEY pra eu conectar
+Brasa is an independent analytics project and does not represent official data from Brazil's Central Bank (BCB).
 
-6. Design: fundo #0a0a0a, cards #1a1a1a com borda #333, bordas 16px, fonte bold
+On-Chain Verification
 
+Where transaction signatures are available, users can inspect the corresponding records through a Solana blockchain explorer such as Solscan.
 
+These records can help verify transaction details, including the token transfer and its on-chain execution. They do not independently establish the original off-chain payment method.
 
-Código limpo e comentado para eu aprender.
+Technology Stack
 
-This project was built with [Lovable](https://lovable.dev).
+- Helius: Access to Solana blockchain data.
+- Supabase: Database, data processing, and dashboard data access.
+- Lovable: Dashboard development and interface.
+- React and TypeScript: Frontend technologies used by the dashboard.
 
-https://brasa-dashboard-brl.lovable.app/
-## Build with Lovable
+Live Product
 
-Continue developing this project in the [Lovable editor](https://lovable.dev/projects/058c9f83-295b-4cb7-b5c3-ac35af5624a3).
+Access the Brasa dashboard:
 
-- **Ship faster**: describe what you want to build and Lovable handles the code.
-- **Stay in sync**: every change made in Lovable is committed straight to this repository.
-- **Full ownership**: this code is yours. Push to `main` on GitHub and your changes sync back into Lovable, ready for your next prompt.
+https://points-pulse-dash.lovable.app/
 
-## Development
+Project Status
 
-Prefer working locally? You need Node.js and npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
+Brasa is an evolving analytics project. Current work focuses on improving data quality, documenting wallet classification rules, validating transaction calculations, and making the distinction between verified on-chain activity and estimated PIX attribution clear.
 
-```sh
-git clone <this-repository-url>
-cd <repository-name>
-npm i
-npm run dev
-```
+Vision
+
+Brasa aims to help Brazilian users, fintechs, and Solana developers better understand digital dollar activity connected to Brazil through transparent, auditable, and data-driven analytics.
+
+---
+
+Built independently with Helius, Supabase, and Lovable.
