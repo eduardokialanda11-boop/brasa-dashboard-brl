@@ -64,7 +64,7 @@ Live Product
 
 Access the Brasa dashboard:
 
-https://https://brasa-dashboard-brl.lovable.app/
+https://brasa-dashboard-brl.lovable.app/
 
 Project Status
 
