@@ -1,5 +1,13 @@
 {
   "version": "7",
   "dialect": "postgresql",
-  "entries": []
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1792366994874,
+      "tag": "0000_create_pix_onchain_events",
+      "breakpoints": true
+    }
+  ]
 }

@@ -14,7 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      pix_onchain_events: {
+        Row: {
+          amount_brl: number | null
+          amount_usdc: number | null
+          block_time: string
+          gateway_origin: string | null
+          import_marker: string | null
+          origem: string | null
+          signature: string
+          token_mint: string | null
+          token_symbol: string | null
+          wallet_address: string | null
+        }
+        Insert: {
+          amount_brl?: number | null
+          amount_usdc?: number | null
+          block_time: string
+          gateway_origin?: string | null
+          import_marker?: string | null
+          origem?: string | null
+          signature: string
+          token_mint?: string | null
+          token_symbol?: string | null
+          wallet_address?: string | null
+        }
+        Update: {
+          amount_brl?: number | null
+          amount_usdc?: number | null
+          block_time?: string
+          gateway_origin?: string | null
+          import_marker?: string | null
+          origem?: string | null
+          signature?: string
+          token_mint?: string | null
+          token_symbol?: string | null
+          wallet_address?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
