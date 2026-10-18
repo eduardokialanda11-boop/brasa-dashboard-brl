@@ -1,3 +1,5 @@
+import { exchangeReference, isVerifiedUSDC, positiveAmount } from "./event-policy";
+
 export type OnchainEvent = {
   signature: string | null;
   amount_brl: number | string | null;
@@ -16,17 +18,7 @@ export type DailyVolume = {
   usd_brl_rate: number | null;
 };
 
-const USDC_MINT =
-  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
-
-const numberFrom = (value: number | string | null | undefined) => {
-  if (value === null || value === undefined || value === "") {
-    return 0;
-  }
-
-  const number = Number(value);
-  return Number.isFinite(number) && number > 0 ? number : 0;
-};
+const numberFrom = positiveAmount;
 
 export function onchainEventDate(value: string | Date): string | null {
   const date = new Date(value);
@@ -54,19 +46,13 @@ export function onchainEventDate(value: string | Date): string | null {
     : null;
 }
 
-function isVerifiedUSDC(event: OnchainEvent): boolean {
-  return (
-    event.token_symbol === "USDC" &&
-    event.token_mint === USDC_MINT
-  );
-}
-
 export function summarizeEvents(
   events: OnchainEvent[],
   currentDate: string,
 ) {
   const days = new Map<string, DailyVolume>();
   const origins: Record<string, number> = {};
+  const dailyEvents = new Map<string, OnchainEvent[]>();
 
   const accumulated = {
     totalBRL: 0,
@@ -122,6 +108,9 @@ export function summarizeEvents(
     day.tx_count += 1;
 
     days.set(date, day);
+    const paired = dailyEvents.get(date) ?? [];
+    paired.push(event);
+    dailyEvents.set(date, paired);
 
     if (date === currentDate) {
       today.total_brl += brl;
@@ -129,6 +118,11 @@ export function summarizeEvents(
       today.tx_count += 1;
     }
   }
+
+  for (const [date, day] of days) {
+    day.usd_brl_rate = exchangeReference(dailyEvents.get(date) ?? []);
+  }
+  today.usd_brl_rate = days.get(currentDate)?.usd_brl_rate ?? null;
 
   return {
     accumulated,
@@ -142,7 +136,7 @@ export function summarizeEvents(
 
 export function eventRewards(totalBRL: number) {
   // Estimativa provisória: não representa economia comprovada.
-  const estimatedSavingsRate = 0.023;
+  const estimatedSavingsRate = 0.057;
 
   return {
     economy: Math.max(0, totalBRL) * estimatedSavingsRate,

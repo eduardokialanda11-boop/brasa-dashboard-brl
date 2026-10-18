@@ -16,3 +16,8 @@ test('missing exchange basis remains unavailable rather than inventing PTAX', ()
   const row = { amount_usdc: 0, amount_brl: 20, block_time: null };
   expect(proofConversion(row, [row]).calculatedBRL).toBeNull();
 });
+test('exchange reference groups midnight events by Sao Paulo rather than UTC', () => {
+  const row = { amount_usdc: 4, amount_brl: 20, block_time: '2026-10-09T02:00:00Z' };
+  const rows = [row, { amount_usdc: 6, amount_brl: 40, block_time: '2026-10-08T12:00:00Z' }, { amount_usdc: 10, amount_brl: 1000, block_time: '2026-10-09T03:00:00Z' }];
+  expect(proofConversion(row, rows)).toMatchObject({ day: '2026-10-08', rate: 6, calculatedBRL: 24 });
+});
