@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 - Keep all dashboard currency presentation in `src/utils/format.ts` so cards and charts use identical locale-safe formatting.
+- Dashboard reads flow through the generated Cloud client (`@/integrations/supabase/client`), never through a hand-rolled client with its own URL/key pair; a hand-rolled pair goes stale when the backend is reconnected and silently blanks the dashboard.
 - Aggregate dashboard totals and real chart days from paginated `pix_onchain_events` reads in `src/utils/onchain-summary.ts`; derive daily cards immediately from the shared calendar Date and cached real days, using America/Sao_Paulo boundaries. Explicit empty dates show no records, not another day's rows; default selection starts on the latest real day.
 - Refresh by rereading `pix_onchain_events` every 60 seconds and after its realtime changes; never increment source values in browser state.
 - Future point-entry flows write only `pontos`, `posicao`, and `valor_brl` to `historico_ponto`, then refetch the latest row.
