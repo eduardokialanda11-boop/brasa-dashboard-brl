@@ -17,3 +17,5 @@
 - Calculate dashboard growth from chronological event aggregates; never append missing or future dates to the chart.
 - Derive daily savings from the selected-day volume and historical savings from accumulated volume through the shared rewards helper; separate bases prevent date-independent daily figures.
 - Keep transaction conversion math in a browser-safe helper and layer details in a nested dialog; the daily event ratio is a derived reference, not official PTAX, and returning must preserve the proof list.
+- Keep token eligibility and paired-value exchange math in `src/utils/event-policy.ts`; cards and proofs share them to prevent inconsistent inclusion or reference rates.
+- Serialize dashboard refreshes and verify paginated row counts through `src/utils/paginated-events.ts`; preserve the last successful read and visibly flag failures rather than replacing it with partial totals.

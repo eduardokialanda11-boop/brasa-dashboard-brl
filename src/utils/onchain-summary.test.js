@@ -1,9 +1,9 @@
 import { expect, test } from 'bun:test';
 import { eventRewards, summarizeEvents } from './onchain-summary';
 import { formatBRL } from './format';
-const event = (overrides = {}) => ({ signature: null, amount_brl: 100, amount_usdc: 20, block_time: '2026-10-08T00:00:00Z', origem: 'gateway_direto', ...overrides });
+const event = (overrides = {}) => ({ signature: null, amount_brl: 100, amount_usdc: 20, block_time: '2026-10-08T03:00:00Z', origem: 'gateway_direto', token_symbol: 'USDC', token_mint: 'EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v', ...overrides });
 test('daily totals include midnight and exclude previous dates', () => {
-  const result = summarizeEvents([event(), event({ block_time: '2026-10-07T23:59:59Z', amount_brl: 200 })], '2026-10-08');
+  const result = summarizeEvents([event(), event({ block_time: '2026-10-08T02:59:59Z', amount_brl: 200 })], '2026-10-08');
   expect(result.today).toMatchObject({ total_brl: 100, total_usdc: 20, tx_count: 1 });
 });
 test('all 49 events are included without origin filters', () => {
@@ -29,7 +29,16 @@ test('accumulated economy uses the combined real volume, not a selected day', ()
 test('points equal summed BRL multiplied by 100', () => {
   expect(eventRewards(1000).points).toBe(100000);
 });
-test('all 51 current proof events count, including rows without signatures', () => {
+test('51 eligible fixture events count, including rows without signatures', () => {
   const rows = [...Array.from({ length: 40 }, () => event()), ...Array.from({ length: 11 }, () => event({ origem: 'debridge_brla' }))];
   expect(summarizeEvents(rows, '2026-10-08').accumulated.txCount).toBe(51);
+});
+test('unverified tokens cannot inflate the USDC total', () => {
+  const rows = [event(), event({ token_mint: 'other' }), event({ token_symbol: 'USDT' }), event({ amount_usdc: -1 }), event({ amount_usdc: Infinity })];
+  expect(summarizeEvents(rows, '2026-10-08').accumulated).toEqual({ totalBRL: 100, totalUSDC: 20, txCount: 1 });
+});
+test('exchange reference excludes records without paired BRL values', () => {
+  const result = summarizeEvents([event(), event({ amount_brl: null, amount_usdc: 100 })], '2026-10-08');
+  expect(result.today.usd_brl_rate).toBe(5);
+  expect(result.today.total_usdc).toBe(120);
 });

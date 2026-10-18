@@ -21,6 +21,7 @@ import {
 } from "@/components/onchain-proofs-dialog";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
+import { readCompleteEvents } from "@/utils/paginated-events";
 import {
   eventRewards,
   onchainEventDate,
@@ -138,46 +139,43 @@ function BrasaAoVivo() {
   const [provasAbertas, setProvasAbertas] = useState(false);
   const [provasCarregando, setProvasCarregando] = useState(true);
   const [provasErro, setProvasErro] = useState(false);
+  const [leituraErro, setLeituraErro] = useState(false);
 
   useEffect(() => {
     let active = true;
+    let inFlight = false;
+    let pendingRefresh = false;
 
     async function fetchDashboard() {
+      if (!active) return;
+      if (inFlight) {
+        pendingRefresh = true;
+        return;
+      }
+      inFlight = true;
       try {
-        const countResult = await supabase
-          .from("pix_onchain_events")
-          .select("signature", { count: "exact", head: true });
-
-        if (!active) return;
-        if (countResult.error) throw countResult.error;
-
-        const events: OnchainEvent[] = [];
-
-        for (let offset = 0; ; offset += 1000) {
+        const events = await readCompleteEvents<OnchainEvent>(async (offset, size) => {
           const result = await supabase
             .from("pix_onchain_events")
             .select(
               "signature, amount_brl, amount_usdc, block_time, origem, token_symbol, token_mint",
+              { count: "exact" },
             )
             .order("block_time", { ascending: true })
             .order("signature", { ascending: true })
-            .range(offset, offset + 999);
+            .range(offset, offset + size - 1);
 
-          if (!active) return;
+          if (!active) throw new Error("Leitura cancelada");
           if (result.error) throw result.error;
-
-          const page = (result.data ?? []) as OnchainEvent[];
-          events.push(...page);
-
-          if (page.length < 1000) break;
-        }
+          if (result.count === null) throw new Error("Contagem indisponível");
+          return { rows: (result.data ?? []) as OnchainEvent[], count: result.count };
+        });
 
         const currentDate = brazilDate();
         const summary = summarizeEvents(events, currentDate);
         const allDays = summary.days;
 
         console.info("BRASA leitura pública", {
-          count: countResult.count,
           loaded: events.length,
           origins: summary.origins,
           referenceDate: currentDate,
@@ -186,6 +184,7 @@ function BrasaAoVivo() {
         if (!active) return;
 
         setProvasErro(false);
+        setLeituraErro(false);
 
         const latest = allDays.at(-1);
         setAvailableDays(allDays);
@@ -205,7 +204,7 @@ function BrasaAoVivo() {
         const comparisonDate =
           sevenDaysBefore?.toISOString().slice(0, 10);
 
-        const comparison = chronological.find(
+        const comparison = allDays.find(
           (row) => row.date === comparisonDate,
         );
 
@@ -242,11 +241,17 @@ function BrasaAoVivo() {
 
         if (active) {
           setProvasErro(true);
+          setLeituraErro(true);
         }
       } finally {
+        inFlight = false;
         if (active) {
           setCarregando(false);
           setProvasCarregando(false);
+          if (pendingRefresh) {
+            pendingRefresh = false;
+            void fetchDashboard();
+          }
         }
       }
     }
@@ -285,17 +290,12 @@ function BrasaAoVivo() {
 
   const dolarInformado = asNumber(resumo?.usd_brl_rate);
 
-  const dolar =
-    dolarInformado > 0
-      ? dolarInformado
-      : totalUsdc > 0
-        ? totalBrl / totalUsdc
-        : null;
+  const dolar = dolarInformado > 0 ? dolarInformado : null;
 
   const rewards = eventRewards(acumulado.totalBRL);
   const economiaDiaria = eventRewards(totalBrl).economy;
   const economiaTotalHistorica = rewards.economy;
-  const pontos = rewards.points;
+  const pontos = eventRewards(totalBrl).points;
 
   const syncDateTime = atualizadoEmCompleto
     ? new Intl.DateTimeFormat("pt-BR", {
@@ -625,6 +625,13 @@ function BrasaAoVivo() {
               {avisoData}
             </p>
           )}
+          {leituraErro && (
+            <p role="alert" className="mt-2 text-xs font-medium text-highlight">
+              {atualizadoEm
+                ? "Não foi possível atualizar. Exibindo a última leitura válida; nova tentativa automática."
+                : "Dados indisponíveis nesta leitura. Aguardando nova tentativa; os valores não foram confirmados."}
+            </p>
+          )}
         </header>
 
         <div className="grid gap-4 md:grid-cols-2">
@@ -644,7 +651,7 @@ function BrasaAoVivo() {
                 <div className="py-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-2">
                     <span className="text-2xl font-bold lg:text-3xl">
-                      {formatBRLWhole(totalBrl)}
+                      {leituraErro && !atualizadoEm ? "—" : formatBRLWhole(totalBrl)}
                     </span>
 
                     {inicioDaColeta ? (
@@ -684,7 +691,7 @@ function BrasaAoVivo() {
 
                 <div className="py-3">
                   <p className="text-2xl font-bold lg:text-3xl">
-                    {formatUSDC(totalUsdc)}{" "}
+                    {leituraErro && !atualizadoEm ? "—" : formatUSDC(totalUsdc)}{" "}
                     <span className="text-sm font-medium text-muted-foreground lg:text-base">
                       USDC
                     </span>
@@ -697,7 +704,7 @@ function BrasaAoVivo() {
                 <div className="flex flex-wrap items-center justify-between gap-3 py-3">
                   <div>
                     <p className="text-2xl font-bold lg:text-3xl">
-                      {transacoes.toLocaleString("pt-BR")}{" "}
+                      {leituraErro && !atualizadoEm ? "—" : transacoes.toLocaleString("pt-BR")}{" "}
                       <span className="text-sm font-medium text-muted-foreground lg:text-base">
                         txs
                       </span>
@@ -725,18 +732,17 @@ function BrasaAoVivo() {
                     Economia potencial estimada
                   </p>
                   <p className="mt-1.5 text-2xl font-bold lg:text-3xl">
-                    {formatBRL(economiaDiaria)}
+                    {leituraErro && !atualizadoEm ? "—" : formatBRL(economiaDiaria)}
                   </p>
                   <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground lg:text-xs">
-                    Estimativa calculada pela taxa configurada no
-                    utilitário de economia. Não representa uma
-                    economia comprovada para cada usuário.
+                    Cenário estimado: volume do dia × 5,7%. Não é economia
+                    comprovada nem uma comparação com tarifas bancárias atuais.
                   </p>
                 </div>
 
                 <div className="py-3">
                   <p className="text-2xl font-bold text-highlight lg:text-3xl">
-                    {(pontos / 1000).toLocaleString("pt-BR", {
+                    {leituraErro && !atualizadoEm ? "—" : (pontos / 1000).toLocaleString("pt-BR", {
                       maximumFractionDigits: 1,
                     })}{" "}
                     mil pontos
@@ -749,25 +755,21 @@ function BrasaAoVivo() {
                 <div className="py-3">
                   <p className="text-2xl font-bold lg:text-3xl">
                     {dolar
-                      ? `R$ ${dolar.toLocaleString("pt-BR", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}`
+                      ? formatBRL(dolar)
                       : "-"}
                   </p>
                   <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
-                    {dolarInformado > 0
-                      ? "Taxa informada pela fonte de dados"
-                      : "Razão calculada entre os valores agregados"}
+                    Referência on-chain do dia (São Paulo); BRL/USDC dos
+                    registros com ambos os valores. Não é PTAX oficial.
                   </p>
                 </div>
               </div>
             )}
 
             <footer className="mt-4 border-t border-border pt-3 text-[10px] leading-relaxed text-muted-foreground">
-              Fonte: eventos registrados no Supabase a partir do
+              Fonte: eventos registrados a partir do
               monitoramento on-chain | Rede: Solana | Status:{" "}
-              <span className="text-primary">Coletando</span>
+              <span className="text-primary">{leituraErro ? "Atualização indisponível" : atualizadoEm ? "Última leitura disponível" : "Aguardando leitura"}</span>
             </footer>
           </section>
 
@@ -787,7 +789,7 @@ function BrasaAoVivo() {
               <div className="mt-5 divide-y divide-border">
                 <div className="pb-4">
                   <p className="text-2xl font-bold text-primary lg:text-3xl">
-                    {formatBRLWhole(acumulado.totalBRL)}
+                    {leituraErro && !atualizadoEm ? "—" : formatBRLWhole(acumulado.totalBRL)}
                   </p>
                   <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
                     Total em reais associado aos eventos contabilizados
@@ -796,13 +798,13 @@ function BrasaAoVivo() {
 
                 <div className="py-4">
                   <p className="text-2xl font-bold lg:text-3xl">
-                    {acumulado.txCount.toLocaleString("pt-BR")}{" "}
+                    {leituraErro && !atualizadoEm ? "—" : acumulado.txCount.toLocaleString("pt-BR")}{" "}
                     <span className="text-sm font-medium text-muted-foreground lg:text-base">
                       txs
                     </span>
                   </p>
                   <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
-                    {formatBRL(acumulado.totalBRL)} no total |{" "}
+                    {leituraErro && !atualizadoEm ? "—" : formatBRL(acumulado.totalBRL)} no total |{" "}
                     {acumulado.txCount.toLocaleString("pt-BR")}{" "}
                     transações registradas
                   </p>
@@ -967,8 +969,9 @@ function BrasaAoVivo() {
                 👛 Monitoramento on-chain
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Eventos de transferências são coletados e registrados
-                para consulta e auditoria.
+                Cobertura limitada aos eventos disponíveis do USDC oficial.
+                USDT ainda não é contabilizado. Estes volumes não representam
+                todo o mercado brasileiro nem toda a rede Solana.
               </p>
             </article>
 
@@ -986,7 +989,7 @@ function BrasaAoVivo() {
                 💰 Economia potencial
               </h3>
               <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
-                Estimativa baseada na taxa configurada no utilitário:
+                Cenário estimado de 5,7% sobre o volume registrado:
                 {` ${formatBRL(economiaTotalHistorica)} `}no histórico.
                 O valor não representa uma economia individual
                 comprovada.

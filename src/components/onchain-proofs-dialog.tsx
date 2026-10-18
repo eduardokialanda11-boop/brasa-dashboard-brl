@@ -19,6 +19,7 @@ import { formatBRL, formatUSDC } from "@/utils/format";
 import { proofConversion } from "@/utils/proof-conversion";
 import { proofsForDate } from "@/utils/proof-date";
 import { onchainEventDate } from "@/utils/onchain-summary";
+import { isVerifiedUSDC } from "@/utils/event-policy";
 
 export type TransactionRow = Record<string, unknown>;
 
@@ -30,9 +31,6 @@ type OnchainProofsDialogProps = {
   loading: boolean;
   error: boolean;
 };
-
-const USDC_MINT =
-  "EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v";
 
 const numberFrom = (row: TransactionRow, keys: string[]) => {
   const value = keys
@@ -50,9 +48,6 @@ const textFrom = (row: TransactionRow, keys: string[]) => {
 
   return typeof value === "string" ? value : "";
 };
-
-const isVerifiedUSDC = (row: TransactionRow) =>
-  row["token_symbol"] === "USDC" && row["token_mint"] === USDC_MINT && numberFrom(row, ["amount_usdc"]) > 0;
 
 const shorten = (value: string) =>
   value.length > 12
@@ -178,9 +173,7 @@ export function OnchainProofsDialog({
 
       const link = document.createElement("a");
       link.href = url;
-      link.download = `brasa-provas-${new Date()
-        .toISOString()
-        .slice(0, 10)}.csv`;
+      link.download = `brasa-provas-${referenceDate}.csv`;
 
       document.body.appendChild(link);
       link.click();
@@ -222,7 +215,7 @@ export function OnchainProofsDialog({
 
           <DialogDescription className="text-left leading-relaxed">
             <strong className="text-foreground">
-              {safeTransactionCount.toLocaleString("pt-BR")} transações auditáveis
+              {safeTransactionCount.toLocaleString("pt-BR")} transferências registradas
             </strong>
             {" | "}{referenceDate ? referenceDate.split("-").reverse().join("/") : "Data indisponível"}
           </DialogDescription>
@@ -271,13 +264,18 @@ export function OnchainProofsDialog({
             <p className="py-12 text-center text-sm text-muted-foreground">
               Buscando registros de prova...
             </p>
-          ) : error ? (
+          ) : error && rows.length === 0 ? (
             <div className="rounded-lg border border-highlight/30 bg-accent p-4 text-sm text-highlight">
-              A tabela de provas não pôde ser consultada agora. O resumo
-              diário continua disponível.
+              Os dados não puderam ser consultados agora. Aguardando
+              uma nova leitura válida.
             </div>
           ) : (
             <div className="space-y-4">
+              {error ? (
+                <p role="alert" className="text-sm text-highlight">
+                  Atualização indisponível. Lista da última leitura válida.
+                </p>
+              ) : null}
               {signedRows.length < verifiedRows.length ? (
                 <div className="rounded-lg border border-highlight/30 bg-accent p-4 text-sm text-highlight">
                   Alguns registros não possuem assinatura disponível
@@ -470,9 +468,9 @@ export function OnchainProofsDialog({
 
                   <p className="text-xs font-normal leading-relaxed text-muted-foreground">
                     A referência cambial é calculada a partir dos valores
-                    agregados dos eventos do dia UTC, conforme a função
-                    de conversão. Não representa necessariamente uma
-                    cotação oficial. BRL registrado no banco:{" "}
+                    dos registros com BRL e USDC positivos no mesmo dia
+                    em São Paulo. Não é PTAX oficial nem uma cotação
+                    independente. BRL registrado na fonte:{" "}
                     {formatBRL(
                       numberFrom(selectedTx, ["amount_brl"]),
                     )}
