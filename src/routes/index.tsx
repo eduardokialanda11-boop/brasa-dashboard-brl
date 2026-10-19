@@ -998,7 +998,7 @@ function BrasaAoVivo() {
             </footer>
           </section>
 
-          <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+          <section className="brasa-fade-up-delayed rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">
               Crescimento histórico do BRASA
             </p>
@@ -1039,7 +1039,7 @@ function BrasaAoVivo() {
           </section>
         </div>
 
-        <section className="mt-6 rounded-xl border border-border bg-card p-4 shadow-xl md:col-span-2 lg:rounded-2xl lg:p-6">
+        <section className="brasa-fade-up mt-6 rounded-xl border border-border bg-card p-4 shadow-xl md:col-span-2 lg:rounded-2xl lg:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold lg:text-xl">
               O volume monitorado está crescendo?
@@ -1183,7 +1183,7 @@ function BrasaAoVivo() {
           )}
         </section>
 
-        <section className="mt-6 rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+        <section className="brasa-fade-up mt-6 rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
           <h2 className="text-lg font-bold lg:text-xl">
             Como funciona
           </h2>
