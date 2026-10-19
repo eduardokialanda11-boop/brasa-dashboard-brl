@@ -552,6 +552,123 @@ function BrasaAoVivo() {
     [chartMaximum, semana],
   );
 
+  // Histórico completo de coleta: mesmos dias agregados do dashboard
+  // (eventos USDC verificados, agrupados por data em America/Sao_Paulo,
+  // assinaturas únicas pela chave primária da tabela).
+  const historicoCompleto = availableDays;
+
+  const historicoStats = useMemo(() => {
+    if (!historicoCompleto.length) return null;
+
+    let melhor = historicoCompleto[0];
+    let pior = historicoCompleto[0];
+    let totalBRLHistorico = 0;
+    let totalTxHistorico = 0;
+
+    for (const day of historicoCompleto) {
+      const brl = asNumber(day.total_brl);
+      totalBRLHistorico += brl;
+      totalTxHistorico += asNumber(day.tx_count);
+      if (brl > asNumber(melhor.total_brl)) melhor = day;
+      if (brl < asNumber(pior.total_brl)) pior = day;
+    }
+
+    // Empates: todas as datas com o mesmo volume do melhor/pior dia.
+    const melhorBRL = asNumber(melhor.total_brl);
+    const piorBRL = asNumber(pior.total_brl);
+    const melhoresDatas = historicoCompleto
+      .filter((day) => asNumber(day.total_brl) === melhorBRL)
+      .map((day) => day.date);
+    const pioresDatas = historicoCompleto
+      .filter((day) => asNumber(day.total_brl) === piorBRL)
+      .map((day) => day.date);
+
+    return {
+      melhor,
+      pior,
+      melhoresDatas,
+      pioresDatas,
+      primeiroDia: historicoCompleto[0].date,
+      ultimoDia: historicoCompleto.at(-1)!.date,
+      totalBRLHistorico,
+      totalTxHistorico,
+      // Média aritmética simples: soma dos volumes diários ÷ número de
+      // dias com registros (dias sem eventos não entram no divisor).
+      mediaDiaria: totalBRLHistorico / historicoCompleto.length,
+      diasComRegistros: historicoCompleto.length,
+    };
+  }, [historicoCompleto]);
+
+  const historicoChartData = useMemo<ChartData<"bar">>(
+    () => ({
+      labels: historicoCompleto.map((day) => day.date),
+      datasets: [
+        {
+          label: "Volume diário",
+          data: historicoCompleto.map((day) => asNumber(day.total_brl)),
+          backgroundColor: "rgba(34,197,94,.55)",
+          hoverBackgroundColor: "rgba(34,197,94,.85)",
+          borderColor: "#22c55e",
+          borderWidth: 1,
+          borderRadius: 4,
+          maxBarThickness: 28,
+        },
+      ],
+    }),
+    [historicoCompleto],
+  );
+
+  const historicoChartOptions = useMemo<ChartOptions<"bar">>(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 700, easing: "easeOutQuart" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#142e23",
+          callbacks: {
+            title: (items) => {
+              const day = historicoCompleto[items[0]?.dataIndex ?? 0];
+              return day ? formatDate(day.date) : "";
+            },
+            label: (context) => {
+              const day = historicoCompleto[context.dataIndex];
+              return day
+                ? `${formatBRL(asNumber(day.total_brl))} - ${asNumber(
+                    day.tx_count,
+                  ).toLocaleString("pt-BR")} txs`
+                : "";
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: "#8fb09c",
+            maxTicksLimit: 8,
+            maxRotation: 0,
+            callback: function (_value, index) {
+              const day = historicoCompleto[index];
+              return day ? formatDate(day.date) : "";
+            },
+          },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: "rgba(255,255,255,.06)" },
+          ticks: {
+            color: "#8fb09c",
+            callback: (value) => formatBRLCompact(Number(value)),
+          },
+        },
+      },
+    }),
+    [historicoCompleto],
+  );
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[480px] px-4 py-6 md:max-w-[900px] md:px-8 md:py-10">
