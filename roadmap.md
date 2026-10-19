@@ -1,4 +1,5 @@
 # Roadmap
+- [ ] Restaurar leitura da prévia no banco externo original, validar mesma fonte do publicado e provas; sem mudar dados nem publicar.
 - [x] Lovable Cloud ativado e religado: 1.202 eventos reais copiados do backend anterior para a nova tabela `pix_onchain_events` (R$ 5.346.388,72 / 1.030.132,70 USDC, 07/10–18/10), escrita restrita por guarda de importação já removida; app passa a usar o cliente gerado do Cloud; navegador confirmou 85 txs no dia, acumulado de 1.158 txs, 85 links Solscan e nenhum erro de console
 - [x] Consolidados economia 5,7%, câmbio São Paulo, elegibilidade compartilhada, leituras serializadas e aviso de cobertura; 22 testes passaram, navegador confirmou 20/93 registros, CSV diário e manutenção dos dados após falha de atualização
 - [x] Seleção de data imediata no fuso São Paulo; navegador confirmou cards/lista/CSV com 20, 93 e 101 eventos em 07/10, 08/10 e 09/10, cópia correta e acumulado independente; pix_usdc_conversions indisponível nesta conexão, mantida fonte real existente
