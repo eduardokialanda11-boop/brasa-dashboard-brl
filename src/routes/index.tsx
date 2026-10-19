@@ -1,6 +1,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  BarElement,
   CategoryScale,
   Chart as ChartJS,
   Filler,
@@ -11,7 +12,7 @@ import {
   type ChartData,
   type ChartOptions,
 } from "chart.js";
-import { Line } from "react-chartjs-2";
+import { Bar, Line } from "react-chartjs-2";
 import { CalendarDays, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import brasaIcon from "@/assets/brasa-b-logo-v2.png.asset.json";
@@ -41,6 +42,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Filler,
   Tooltip,
 );
