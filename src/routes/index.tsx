@@ -560,8 +560,8 @@ function BrasaAoVivo() {
   const historicoStats = useMemo(() => {
     if (!historicoCompleto.length) return null;
 
-    let melhor = historicoCompleto[0];
-    let pior = historicoCompleto[0];
+    let melhor = historicoCompleto[0]!;
+    let pior = historicoCompleto[0]!;
     let totalBRLHistorico = 0;
     let totalTxHistorico = 0;
 
@@ -588,7 +588,7 @@ function BrasaAoVivo() {
       pior,
       melhoresDatas,
       pioresDatas,
-      primeiroDia: historicoCompleto[0].date,
+      primeiroDia: historicoCompleto[0]!.date,
       ultimoDia: historicoCompleto.at(-1)!.date,
       totalBRLHistorico,
       totalTxHistorico,
