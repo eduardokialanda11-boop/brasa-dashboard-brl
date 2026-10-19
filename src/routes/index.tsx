@@ -1,6 +1,7 @@
 
 import { createFileRoute } from "@tanstack/react-router";
 import {
+  BarElement,
   CategoryScale,
   Chart as ChartJS,
   Filler,
@@ -11,7 +12,7 @@ import {
   type ChartData,
   type ChartOptions,
 } from "chart.js";
-import { Line } from "react-chartjs-2";
+import { Bar, Line } from "react-chartjs-2";
 import { CalendarDays, Search } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import brasaIcon from "@/assets/brasa-b-logo-v2.png.asset.json";
@@ -41,6 +42,7 @@ ChartJS.register(
   LinearScale,
   PointElement,
   LineElement,
+  BarElement,
   Filler,
   Tooltip,
 );
@@ -550,6 +552,123 @@ function BrasaAoVivo() {
     [chartMaximum, semana],
   );
 
+  // Histórico completo de coleta: mesmos dias agregados do dashboard
+  // (eventos USDC verificados, agrupados por data em America/Sao_Paulo,
+  // assinaturas únicas pela chave primária da tabela).
+  const historicoCompleto = availableDays;
+
+  const historicoStats = useMemo(() => {
+    if (!historicoCompleto.length) return null;
+
+    let melhor = historicoCompleto[0]!;
+    let pior = historicoCompleto[0]!;
+    let totalBRLHistorico = 0;
+    let totalTxHistorico = 0;
+
+    for (const day of historicoCompleto) {
+      const brl = asNumber(day.total_brl);
+      totalBRLHistorico += brl;
+      totalTxHistorico += asNumber(day.tx_count);
+      if (brl > asNumber(melhor.total_brl)) melhor = day;
+      if (brl < asNumber(pior.total_brl)) pior = day;
+    }
+
+    // Empates: todas as datas com o mesmo volume do melhor/pior dia.
+    const melhorBRL = asNumber(melhor.total_brl);
+    const piorBRL = asNumber(pior.total_brl);
+    const melhoresDatas = historicoCompleto
+      .filter((day) => asNumber(day.total_brl) === melhorBRL)
+      .map((day) => day.date);
+    const pioresDatas = historicoCompleto
+      .filter((day) => asNumber(day.total_brl) === piorBRL)
+      .map((day) => day.date);
+
+    return {
+      melhor,
+      pior,
+      melhoresDatas,
+      pioresDatas,
+      primeiroDia: historicoCompleto[0]!.date,
+      ultimoDia: historicoCompleto.at(-1)!.date,
+      totalBRLHistorico,
+      totalTxHistorico,
+      // Média aritmética simples: soma dos volumes diários ÷ número de
+      // dias com registros (dias sem eventos não entram no divisor).
+      mediaDiaria: totalBRLHistorico / historicoCompleto.length,
+      diasComRegistros: historicoCompleto.length,
+    };
+  }, [historicoCompleto]);
+
+  const historicoChartData = useMemo<ChartData<"bar">>(
+    () => ({
+      labels: historicoCompleto.map((day) => day.date),
+      datasets: [
+        {
+          label: "Volume diário",
+          data: historicoCompleto.map((day) => asNumber(day.total_brl)),
+          backgroundColor: "rgba(34,197,94,.55)",
+          hoverBackgroundColor: "rgba(34,197,94,.85)",
+          borderColor: "#22c55e",
+          borderWidth: 1,
+          borderRadius: 4,
+          maxBarThickness: 28,
+        },
+      ],
+    }),
+    [historicoCompleto],
+  );
+
+  const historicoChartOptions = useMemo<ChartOptions<"bar">>(
+    () => ({
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 700, easing: "easeOutQuart" },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: "#142e23",
+          callbacks: {
+            title: (items) => {
+              const day = historicoCompleto[items[0]?.dataIndex ?? 0];
+              return day ? formatDate(day.date) : "";
+            },
+            label: (context) => {
+              const day = historicoCompleto[context.dataIndex];
+              return day
+                ? `${formatBRL(asNumber(day.total_brl))} - ${asNumber(
+                    day.tx_count,
+                  ).toLocaleString("pt-BR")} txs`
+                : "";
+            },
+          },
+        },
+      },
+      scales: {
+        x: {
+          grid: { display: false },
+          ticks: {
+            color: "#8fb09c",
+            maxTicksLimit: 8,
+            maxRotation: 0,
+            callback: function (_value, index) {
+              const day = historicoCompleto[index];
+              return day ? formatDate(day.date) : "";
+            },
+          },
+        },
+        y: {
+          beginAtZero: true,
+          grid: { color: "rgba(255,255,255,.06)" },
+          ticks: {
+            color: "#8fb09c",
+            callback: (value) => formatBRLCompact(Number(value)),
+          },
+        },
+      },
+    }),
+    [historicoCompleto],
+  );
+
   return (
     <main className="min-h-screen bg-background text-foreground">
       <div className="mx-auto w-full max-w-[480px] px-4 py-6 md:max-w-[900px] md:px-8 md:py-10">
@@ -559,7 +678,7 @@ function BrasaAoVivo() {
               <img
                 src={brasaIcon.url}
                 alt=""
-                className="size-8 shrink-0 rounded-full object-cover"
+                className="brasa-logo-animated size-8 shrink-0 rounded-full object-cover"
               />
               <span className="font-bold">BRASA</span>
             </div>
@@ -634,8 +753,114 @@ function BrasaAoVivo() {
           )}
         </header>
 
+        <section className="brasa-fade-up mb-6 rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h2 className="text-lg font-bold lg:text-xl">
+              Histórico de coleta
+            </h2>
+            {historicoStats && (
+              <span className="rounded-full bg-primary/10 px-2.5 py-1 text-xs font-semibold text-primary">
+                {historicoStats.diasComRegistros.toLocaleString("pt-BR")}{" "}
+                dias com registros
+              </span>
+            )}
+          </div>
+
+          {carregando ? (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Calculando o histórico completo...
+            </p>
+          ) : historicoStats ? (
+            <>
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                <div className="rounded-lg border border-primary/30 bg-primary/5 p-3">
+                  <p className="text-[11px] font-bold uppercase text-muted-foreground">
+                    Melhor dia
+                  </p>
+                  <p className="mt-1 text-xl font-bold text-primary">
+                    {formatBRL(asNumber(historicoStats.melhor.total_brl))}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {historicoStats.melhoresDatas.map(formatDate).join(", ")}{" "}
+                    |{" "}
+                    {asNumber(historicoStats.melhor.tx_count).toLocaleString(
+                      "pt-BR",
+                    )}{" "}
+                    txs
+                    {historicoStats.melhoresDatas.length > 1
+                      ? " (empate de volume)"
+                      : ""}
+                  </p>
+                </div>
+
+                <div className="rounded-lg border border-border bg-background/40 p-3">
+                  <p className="text-[11px] font-bold uppercase text-muted-foreground">
+                    Menor volume
+                  </p>
+                  <p className="mt-1 text-xl font-bold">
+                    {formatBRL(asNumber(historicoStats.pior.total_brl))}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {historicoStats.pioresDatas.map(formatDate).join(", ")} |{" "}
+                    {asNumber(historicoStats.pior.tx_count).toLocaleString(
+                      "pt-BR",
+                    )}{" "}
+                    txs
+                    {historicoStats.pioresDatas.length > 1
+                      ? " (empate de volume)"
+                      : ""}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-3 rounded-lg bg-secondary p-3 text-xs leading-relaxed text-muted-foreground md:text-sm">
+                <p>
+                  Período disponível:{" "}
+                  <strong className="text-foreground">
+                    {formatDate(historicoStats.primeiroDia)}
+                  </strong>{" "}
+                  a{" "}
+                  <strong className="text-foreground">
+                    {formatDate(historicoStats.ultimoDia)}
+                  </strong>{" "}
+                  | Total:{" "}
+                  <strong className="text-foreground">
+                    {formatBRL(historicoStats.totalBRLHistorico)}
+                  </strong>{" "}
+                  em{" "}
+                  <strong className="text-foreground">
+                    {historicoStats.totalTxHistorico.toLocaleString("pt-BR")}
+                  </strong>{" "}
+                  txs | Média diária:{" "}
+                  <strong className="text-foreground">
+                    {formatBRL(historicoStats.mediaDiaria)}
+                  </strong>{" "}
+                  (soma dos volumes ÷ dias com registros)
+                </p>
+                <p className="mt-2">
+                  O primeiro dia exibido é o registro mais antigo disponível
+                  na fonte atual, não necessariamente o início absoluto da
+                  coleta. Dias sem eventos comprovados não aparecem como
+                  volume zero.
+                </p>
+              </div>
+
+              <div className="mt-4 h-[220px] lg:h-[300px]">
+                <Bar
+                  data={historicoChartData}
+                  options={historicoChartOptions}
+                />
+              </div>
+            </>
+          ) : (
+            <p className="py-12 text-center text-sm text-muted-foreground">
+              Aguardando os primeiros dados da coleta...
+            </p>
+          )}
+        </section>
+
         <div className="grid gap-4 md:grid-cols-2">
-          <section key={selectedDate?.toISOString()} className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+          <section key={selectedDate?.toISOString()} className="brasa-fade-up-delayed rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold lg:text-xl">
                 Dia
@@ -773,7 +998,7 @@ function BrasaAoVivo() {
             </footer>
           </section>
 
-          <section className="rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+          <section className="brasa-fade-up-delayed rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
             <p className="text-[11px] font-bold uppercase text-muted-foreground">
               Crescimento histórico do BRASA
             </p>
@@ -814,7 +1039,7 @@ function BrasaAoVivo() {
           </section>
         </div>
 
-        <section className="mt-6 rounded-xl border border-border bg-card p-4 shadow-xl md:col-span-2 lg:rounded-2xl lg:p-6">
+        <section className="brasa-fade-up mt-6 rounded-xl border border-border bg-card p-4 shadow-xl md:col-span-2 lg:rounded-2xl lg:p-6">
           <div className="flex flex-wrap items-center justify-between gap-2">
             <h2 className="text-lg font-bold lg:text-xl">
               O volume monitorado está crescendo?
@@ -958,7 +1183,7 @@ function BrasaAoVivo() {
           )}
         </section>
 
-        <section className="mt-6 rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+        <section className="brasa-fade-up mt-6 rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
           <h2 className="text-lg font-bold lg:text-xl">
             Como funciona
           </h2>

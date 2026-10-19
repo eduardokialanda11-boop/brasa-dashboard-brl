@@ -214,3 +214,58 @@
 @utility metric-orange-card {
   --metric-accent: var(--metric-orange);
 }
+
+/* Animações discretas do Brasa */
+@keyframes brasa-logo-enter {
+  from {
+    opacity: 0;
+    transform: translateY(-6px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes brasa-logo-glow {
+  0%,
+  100% {
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  50% {
+    filter: drop-shadow(0 0 10px color-mix(in oklab, var(--primary) 55%, transparent));
+  }
+}
+
+@keyframes brasa-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@utility brasa-logo-animated {
+  animation:
+    brasa-logo-enter 0.7s ease-out both,
+    brasa-logo-glow 4.5s ease-in-out 1s infinite;
+}
+
+@utility brasa-fade-up {
+  animation: brasa-fade-up 0.55s ease-out both;
+}
+
+@utility brasa-fade-up-delayed {
+  animation: brasa-fade-up 0.55s ease-out 0.12s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .brasa-logo-animated,
+  .brasa-fade-up,
+  .brasa-fade-up-delayed {
+    animation: none;
+  }
+}
