@@ -20,11 +20,21 @@ import {
   OnchainProofsDialog,
   type TransactionRow,
 } from "@/components/onchain-proofs-dialog";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip as RechartsTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/lib/supabase";
 import { readCompleteEvents } from "@/utils/paginated-events";
 import {
   eventRewards,
+  fillDailySeries,
   onchainEventDate,
   summarizeEvents,
   type DailyVolume,
@@ -46,6 +56,9 @@ ChartJS.register(
   Filler,
   Tooltip,
 );
+
+// Primeiro dia de coleta real registrado na fonte.
+const PRIMEIRO_DIA_COLETA = "2026-10-07";
 
 type AccumulatedVolume = {
   totalBRL: number;
@@ -556,6 +569,10 @@ function BrasaAoVivo() {
   // (eventos USDC verificados, agrupados por data em America/Sao_Paulo,
   // assinaturas únicas pela chave primária da tabela).
   const historicoCompleto = availableDays;
+  const serieHistorica = useMemo(
+    () => fillDailySeries(availableDays, PRIMEIRO_DIA_COLETA, onchainEventDate(new Date()) ?? PRIMEIRO_DIA_COLETA),
+    [availableDays, atualizadoEm],
+  );
 
   const historicoStats = useMemo(() => {
     if (!historicoCompleto.length) return null;
@@ -859,7 +876,7 @@ function BrasaAoVivo() {
           )}
         </section>
 
-        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-6">
           <section key={selectedDate?.toISOString()} className="brasa-fade-up-delayed rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold lg:text-xl">
@@ -998,45 +1015,6 @@ function BrasaAoVivo() {
             </footer>
           </section>
 
-          <section className="brasa-fade-up-delayed rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
-            <p className="text-[11px] font-bold uppercase text-muted-foreground">
-              Crescimento histórico do BRASA
-            </p>
-            <h2 className="mt-1 text-lg font-bold lg:text-xl">
-              Acumulado Total Registrado
-            </h2>
-
-            {carregando ? (
-              <p className="py-16 text-center text-sm text-muted-foreground">
-                Calculando o histórico...
-              </p>
-            ) : (
-              <div className="mt-5 divide-y divide-border">
-                <div className="pb-4">
-                  <p className="text-2xl font-bold text-primary lg:text-3xl">
-                    {leituraErro && !atualizadoEm ? "—" : formatBRLWhole(acumulado.totalBRL)}
-                  </p>
-                  <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
-                    Total em reais associado aos eventos contabilizados
-                  </p>
-                </div>
-
-                <div className="py-4">
-                  <p className="text-2xl font-bold lg:text-3xl">
-                    {leituraErro && !atualizadoEm ? "—" : acumulado.txCount.toLocaleString("pt-BR")}{" "}
-                    <span className="text-sm font-medium text-muted-foreground lg:text-base">
-                      txs
-                    </span>
-                  </p>
-                  <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
-                    {leituraErro && !atualizadoEm ? "—" : formatBRL(acumulado.totalBRL)} no total |{" "}
-                    {acumulado.txCount.toLocaleString("pt-BR")}{" "}
-                    transações registradas
-                  </p>
-                </div>
-              </div>
-            )}
-          </section>
         </div>
 
         <section className="brasa-fade-up mt-6 rounded-xl border border-border bg-card p-4 shadow-xl md:col-span-2 lg:rounded-2xl lg:p-6">
@@ -1183,6 +1161,71 @@ function BrasaAoVivo() {
           )}
         </section>
 
+          <section className="brasa-fade-up-delayed mt-6 rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
+            <p className="text-[11px] font-bold uppercase text-muted-foreground">
+              Crescimento histórico do BRASA
+            </p>
+            <h2 className="mt-1 text-lg font-bold lg:text-xl">
+              Acumulado Total Registrado
+            </h2>
+
+            {carregando ? (
+              <p className="py-16 text-center text-sm text-muted-foreground">
+                Calculando o histórico...
+              </p>
+            ) : (
+              <div className="mt-5 divide-y divide-border">
+                <div className="pb-4">
+                  <p className="text-2xl font-bold text-primary lg:text-3xl">
+                    {leituraErro && !atualizadoEm ? "—" : formatBRLWhole(acumulado.totalBRL)}
+                  </p>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
+                    Total em reais associado aos eventos contabilizados
+                  </p>
+                </div>
+
+                <div className="py-4">
+                  <p className="text-2xl font-bold lg:text-3xl">
+                    {leituraErro && !atualizadoEm ? "—" : acumulado.txCount.toLocaleString("pt-BR")}{" "}
+                    <span className="text-sm font-medium text-muted-foreground lg:text-base">
+                      txs
+                    </span>
+                  </p>
+                  <p className="mt-1.5 text-[11px] text-muted-foreground lg:text-sm">
+                    {leituraErro && !atualizadoEm ? "—" : formatBRL(acumulado.totalBRL)} no total |{" "}
+                    {acumulado.txCount.toLocaleString("pt-BR")}{" "}
+                    transações registradas
+                  </p>
+                </div>
+              </div>
+            )}
+            {!carregando && serieHistorica.length > 0 && (
+              <div className="mt-4 h-[220px] lg:h-[300px]">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={serieHistorica} margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="historicoArea" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="0%" stopColor="var(--primary)" stopOpacity={0.5} />
+                        <stop offset="100%" stopColor="var(--primary)" stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid stroke="var(--border)" strokeDasharray="3 3" vertical={false} />
+                    <XAxis dataKey="date" tickFormatter={(d: string) => formatDate(d).slice(0, 5)} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} minTickGap={16} />
+                    <YAxis tickFormatter={(v: number) => formatBRLCompact(v)} tick={{ fill: "var(--muted-foreground)", fontSize: 11 }} width={72} />
+                    <RechartsTooltip
+                      contentStyle={{ background: "var(--card)", border: "1px solid var(--border)", borderRadius: 8, color: "var(--foreground)" }}
+                      labelFormatter={(d: string) => formatDate(d)}
+                      formatter={(v: number, _n, item: { payload?: DailyVolume }) => [
+                        `${formatBRL(v)} | ${(item.payload?.tx_count ?? 0).toLocaleString("pt-BR")} txs`,
+                        "Volume",
+                      ]}
+                    />
+                    <Area type="monotone" dataKey="total_brl" stroke="var(--primary)" strokeWidth={2} fill="url(#historicoArea)" />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            )}
+          </section>
         <section className="brasa-fade-up mt-6 rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
           <h2 className="text-lg font-bold lg:text-xl">
             Como funciona
