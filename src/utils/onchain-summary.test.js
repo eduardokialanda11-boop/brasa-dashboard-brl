@@ -42,3 +42,9 @@ test('exchange reference excludes records without paired BRL values', () => {
   expect(result.today.usd_brl_rate).toBe(5);
   expect(result.today.total_usdc).toBe(120);
 });
+import { fillDailySeries } from './onchain-summary';
+test('daily series starts on first collection day and fills gaps with zero', () => {
+  const s = fillDailySeries([{ date: '2026-10-09', total_brl: 50, total_usdc: 10, tx_count: 2, usd_brl_rate: 5 }], '2026-10-07', '2026-10-10');
+  expect(s.map(d => d.date)).toEqual(['2026-10-07', '2026-10-08', '2026-10-09', '2026-10-10']);
+  expect(s.map(d => [d.total_brl, d.tx_count])).toEqual([[0, 0], [0, 0], [50, 2], [0, 0]]);
+});
