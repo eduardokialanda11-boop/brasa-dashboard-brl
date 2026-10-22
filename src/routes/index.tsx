@@ -671,7 +671,7 @@ function BrasaAoVivo() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[480px] px-4 py-6 md:max-w-[900px] md:px-8 md:py-10">
+      <div className="mx-auto w-full max-w-[1400px] px-6 py-6 lg:px-8 lg:py-10 2xl:max-w-[92%]">
         <header className="mb-6 border-b border-border pb-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:flex md:justify-between">
             <div className="flex items-center gap-2">
@@ -692,14 +692,14 @@ function BrasaAoVivo() {
             </div>
           </div>
 
-          <p className="mt-4 max-w-2xl text-sm leading-relaxed text-foreground md:text-base">
+          <p className="mt-4 text-sm leading-relaxed text-foreground md:text-base">
             BRASA monitora transferências de stablecoins na rede
             Solana. Os dados on-chain são auditáveis, mas uma
             transferência isolada não comprova a origem em um
             pagamento PIX.
           </p>
 
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
               <p>
                 {resumo?.date
@@ -859,7 +859,7 @@ function BrasaAoVivo() {
           )}
         </section>
 
-        <div className="grid gap-4 md:grid-cols-2">
+        <div className="grid grid-cols-1 items-stretch gap-6 lg:grid-cols-2">
           <section key={selectedDate?.toISOString()} className="brasa-fade-up-delayed rounded-xl border border-border bg-card p-4 shadow-xl lg:rounded-2xl lg:p-6">
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-lg font-bold lg:text-xl">
