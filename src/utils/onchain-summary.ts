@@ -143,3 +143,17 @@ export function eventRewards(totalBRL: number) {
     points: Math.max(0, totalBRL) * 100,
   };
 }
+
+// Continuous daily series between two Sao Paulo dates; days without events are explicit zeros.
+export function fillDailySeries(days: DailyVolume[], start: string, end: string): DailyVolume[] {
+  const byDate = new Map(days.map((day) => [day.date, day]));
+  const series: DailyVolume[] = [];
+  const cursor = new Date(`${start}T12:00:00Z`);
+  const last = new Date(`${end}T12:00:00Z`);
+  while (cursor <= last) {
+    const date = cursor.toISOString().slice(0, 10);
+    series.push(byDate.get(date) ?? { date, total_brl: 0, total_usdc: 0, tx_count: 0, usd_brl_rate: null });
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+  return series;
+}
