@@ -671,7 +671,7 @@ function BrasaAoVivo() {
 
   return (
     <main className="min-h-screen bg-background text-foreground">
-      <div className="mx-auto w-full max-w-[1400px] px-6 py-6 lg:px-8 lg:py-10">
+      <div className="mx-auto w-full max-w-[1400px] px-6 py-6 lg:px-8 lg:py-10 2xl:max-w-[92%]">
         <header className="mb-6 border-b border-border pb-5">
           <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-4 md:flex md:justify-between">
             <div className="flex items-center gap-2">
